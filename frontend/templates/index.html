@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bollywood Mashup GA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+        }
+        .status {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .button {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .button:hover {
+            transform: scale(1.05);
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Bollywood Mashup Generator</h1>
+        <p style="text-align: center;">Using Genetic Algorithm to create unique Bollywood melodies</p>
+        
+        <div class="status" id="status">
+            Checking server status...
+        </div>
+        
+        <div style="text-align: center;">
+            <button class="button" onclick="checkStatus()">Check Status</button>
+        </div>
+        
+        <div class="footer">
+            <p>Evolutionary Computing Project</p>
+        </div>
+    </div>
+    
+    <script>
+        async function checkStatus() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = 'Checking...';
+            
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                statusDiv.innerHTML = `✅ ${data.message}`;
+            } catch (error) {
+                statusDiv.innerHTML = '❌ Cannot connect to server';
+            }
+        }
+        
+        // Check status when page loads
+        checkStatus();
+    </script>
+</body>
+</html>
