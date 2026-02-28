@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Data
+data/midi_files/
+data/processed/
+*.mid
+*.mp3
+*.wav
+
+# VS Code
+.vscode/
+
+# Temporary
+temp/
+*.log
