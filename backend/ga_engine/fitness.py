@@ -1,5 +1,5 @@
 """
-Fitness functions for evaluating Bollywood mashups
+Improved Fitness Functions for Better Sounding Mashups
 """
 
 import numpy as np
@@ -7,32 +7,33 @@ from typing import Dict, List
 
 class BollywoodFitness:
     """
-    Comprehensive fitness evaluation for Bollywood mashups
+    STRICT fitness evaluation for better sounding mashups
     """
     
     def __init__(self, source_features):
         self.source_features = source_features
         self.weights = {
-            'raga': 0.30,        # 30% - Raga compatibility
-            'rhythm': 0.25,       # 25% - Rhythmic compatibility
-            'melody': 0.20,       # 20% - Melodic interest
-            'transition': 0.15,    # 15% - Smooth transitions
-            'density': 0.10        # 10% - Note density match
+            'key_compatibility': 0.25,     # 25% - Must be in compatible keys
+            'rhythm_alignment': 0.20,       # 20% - Beats must align
+            'note_density': 0.15,            # 15% - Similar note density
+            'pitch_range': 0.15,             # 15% - Similar pitch range
+            'melodic_flow': 0.15,            # 15% - Smooth melodies
+            'dissonance': 0.10               # 10% - Avoid clashing notes
         }
         
     def evaluate(self, chromosome):
         """
-        Evaluate all fitness components
-        Returns dictionary of scores
+        Evaluate with STRICT penalties for bad combinations
         """
         scores = {}
         
         # Calculate each component
-        scores['raga'] = self._calculate_raga_score(chromosome)
-        scores['rhythm'] = self._calculate_rhythm_score(chromosome)
-        scores['melody'] = self._calculate_melody_score(chromosome)
-        scores['transition'] = self._calculate_transition_score(chromosome)
-        scores['density'] = self._calculate_density_score(chromosome)
+        scores['key_compatibility'] = self._calculate_key_score(chromosome)
+        scores['rhythm_alignment'] = self._calculate_rhythm_score(chromosome)
+        scores['note_density'] = self._calculate_density_score(chromosome)
+        scores['pitch_range'] = self._calculate_range_score(chromosome)
+        scores['melodic_flow'] = self._calculate_melodic_score(chromosome)
+        scores['dissonance'] = self._calculate_dissonance_score(chromosome)
         
         # Calculate weighted total
         total_fitness = sum(
@@ -40,186 +41,234 @@ class BollywoodFitness:
             for key in scores
         )
         
-        # Store in chromosome
-        chromosome.fitness = total_fitness
+        # Apply PENALTIES for obviously bad combinations
+        penalty = 1.0
+        
+        # Penalty 1: Too many repeated notes (boring)
+        if scores['melodic_flow'] < 0.3:
+            penalty *= 0.7
+            
+        # Penalty 2: Extreme pitch shifts (sounds like chipmunks)
+        if max(abs(s) for s in chromosome.control_genes['pitch_shifts']) > 5:
+            penalty *= 0.5
+            
+        # Penalty 3: Tempo too different
+        tempo1 = self.source_features.get('tempo1', 100)
+        tempo2 = self.source_features.get('tempo2', 100)
+        if abs(tempo1 - tempo2) > 30:
+            penalty *= 0.8
+            
+        # Apply penalty
+        chromosome.fitness = total_fitness * penalty
         chromosome.fitness_components = scores
         
         return scores
     
-    def _calculate_raga_score(self, chromosome):
+    def _calculate_key_score(self, chromosome):
         """
-        Measure how well mashup preserves raga characteristics
+        STRICT key compatibility - must be close on circle of fifths
         """
         try:
-            # Get melody track (usually index 2)
-            melody_track = chromosome.tracks[2] if len(chromosome.tracks) > 2 else []
+            # Get keys from source features
+            raga1 = self.source_features.get('raga1', {})
+            raga2 = self.source_features.get('raga2', {})
             
-            if not melody_track or len(melody_track) < 5:
-                return 0.5
+            # If no key info, assume compatible
+            if not raga1 or not raga2:
+                return 0.8
             
-            # Extract pitch classes (0-11)
-            pitch_classes = [note['pitch'] % 12 for note in melody_track]
-            unique_pitches = set(pitch_classes)
+            # Get root notes (simplified key detection)
+            notes1 = set(raga1.get('notes', [0, 2, 4, 5, 7, 9, 11]))
+            notes2 = set(raga2.get('notes', [0, 2, 4, 5, 7, 9, 11]))
             
-            # Get source raga notes
-            raga1_notes = set(self.source_features.get('raga1', {}).get('notes', []))
-            raga2_notes = set(self.source_features.get('raga2', {}).get('notes', []))
+            # Calculate overlap
+            overlap = len(notes1 & notes2) / max(len(notes1), len(notes2))
             
-            if not raga1_notes or not raga2_notes:
-                return 0.5
+            # Bonus if they share characteristic notes
+            vadi1 = raga1.get('vadi')
+            vadi2 = raga2.get('vadi')
             
-            # Calculate overlap with both ragas
-            overlap1 = len(unique_pitches & raga1_notes) / len(raga1_notes)
-            overlap2 = len(unique_pitches & raga2_notes) / len(raga2_notes)
+            if vadi1 and vadi2 and vadi1 == vadi2:
+                overlap = min(1.0, overlap + 0.2)
             
-            # Take average
-            score = (overlap1 + overlap2) / 2
+            return overlap
             
-            # Bonus for characteristic notes
-            vadi1 = self.source_features.get('raga1', {}).get('vadi')
-            vadi2 = self.source_features.get('raga2', {}).get('vadi')
-            
-            if vadi1 and vadi1 in unique_pitches:
-                score += 0.1
-            if vadi2 and vadi2 in unique_pitches:
-                score += 0.1
-            
-            return min(1.0, score)
-            
-        except Exception as e:
-            print(f"Raga score error: {e}")
+        except Exception:
             return 0.5
     
     def _calculate_rhythm_score(self, chromosome):
         """
-        Check rhythmic consistency
+        Rhythmic alignment - beats must line up
         """
         try:
-            # Get drum track (usually index 0)
+            # Get drum track
             drum_track = chromosome.tracks[0] if len(chromosome.tracks) > 0 else []
             
             if len(drum_track) < 4:
                 return 0.5
             
-            # Calculate time between drum hits
-            hit_times = [note['start'] for note in drum_track]
-            intervals = np.diff(hit_times)
+            # Calculate beat intervals
+            beat_times = [note['start'] for note in drum_track]
+            intervals = np.diff(beat_times)
             
             if len(intervals) == 0:
                 return 0.5
             
-            # Check regularity (low standard deviation is good)
+            # Good rhythm = consistent intervals (low std deviation)
             interval_std = np.std(intervals)
-            max_std = 0.5  # Maximum expected std deviation
+            mean_interval = np.mean(intervals)
             
-            # Convert to score (lower std = higher score)
-            score = 1.0 / (1.0 + interval_std / max_std)
+            # Normalize: lower std = better
+            consistency = 1.0 / (1.0 + interval_std / mean_interval)
             
-            return min(1.0, score)
-            
-        except Exception:
-            return 0.5
-    
-    def _calculate_melody_score(self, chromosome):
-        """
-        Evaluate melodic interest (variety in intervals)
-        """
-        try:
-            melody_track = chromosome.tracks[2] if len(chromosome.tracks) > 2 else []
-            
-            if len(melody_track) < 3:
-                return 0.5
-            
-            # Calculate intervals between consecutive notes
-            intervals = []
-            for i in range(1, len(melody_track)):
-                interval = abs(melody_track[i]['pitch'] - melody_track[i-1]['pitch'])
-                intervals.append(interval)
-            
-            if not intervals:
-                return 0.5
-            
-            # Good variety in intervals (not all same)
-            unique_intervals = len(set(intervals))
-            variety_score = min(1.0, unique_intervals / 5)  # Expect ~5 unique intervals
-            
-            # Not too many large jumps
-            large_jumps = sum(1 for i in intervals if i > 12)
-            jump_penalty = large_jumps / len(intervals) if intervals else 0
-            
-            score = variety_score * (1 - jump_penalty * 0.5)
-            
-            return min(1.0, max(0.2, score))
-            
-        except Exception:
-            return 0.5
-    
-    def _calculate_transition_score(self, chromosome):
-        """
-        How smooth are transitions between phrases
-        """
-        try:
-            melody_track = chromosome.tracks[2] if len(chromosome.tracks) > 2 else []
-            
-            if len(melody_track) < 8:
-                return 0.5
-            
-            # Split into 4 phrases
-            phrase_length = len(melody_track) // 4
-            phrases = []
-            for i in range(4):
-                start = i * phrase_length
-                end = start + phrase_length
-                if start < len(melody_track):
-                    phrases.append(melody_track[start:end])
-            
-            if len(phrases) < 2:
-                return 0.5
-            
-            # Check transitions between phrases
-            transition_scores = []
-            for i in range(len(phrases) - 1):
-                if phrases[i] and phrases[i+1]:
-                    last_note = phrases[i][-1]['pitch']
-                    first_note = phrases[i+1][0]['pitch']
-                    interval = abs(last_note - first_note)
-                    
-                    # Small interval = smooth transition
-                    transition_scores.append(1.0 / (1.0 + interval / 12))
-            
-            return np.mean(transition_scores) if transition_scores else 0.5
+            return min(1.0, consistency)
             
         except Exception:
             return 0.5
     
     def _calculate_density_score(self, chromosome):
         """
-        Check if note density matches source styles
+        Note density should match source songs
         """
         try:
             # Get source densities
             source1_density = self.source_features.get('density1', 4.0)
             source2_density = self.source_features.get('density2', 4.0)
             
-            # Calculate target density (average)
-            target_density = (source1_density + source2_density) / 2
+            # Calculate target range
+            min_density = min(source1_density, source2_density)
+            max_density = max(source1_density, source2_density)
             
-            # Calculate actual density
+            # Calculate actual density (melody track)
+            melody = chromosome.tracks[2] if len(chromosome.tracks) > 2 else []
+            
+            if len(melody) < 2:
+                return 0.5
+            
+            time_range = melody[-1]['end'] - melody[0]['start']
+            actual_density = len(melody) / time_range if time_range > 0 else 4.0
+            
+            # Score based on being WITHIN the range
+            if min_density <= actual_density <= max_density:
+                return 1.0
+            elif actual_density < min_density:
+                return actual_density / min_density
+            else:
+                return max_density / actual_density
+            
+        except Exception:
+            return 0.5
+    
+    def _calculate_range_score(self, chromosome):
+        """
+        Pitch range should be similar to source songs
+        """
+        try:
+            # Get melody track
+            melody = chromosome.tracks[2] if len(chromosome.tracks) > 2 else []
+            
+            if len(melody) < 2:
+                return 0.5
+            
+            pitches = [note['pitch'] for note in melody]
+            actual_range = max(pitches) - min(pitches)
+            
+            # Ideal range for melody (about 2 octaves = 24 semitones)
+            ideal_range = 24
+            
+            # Score based on closeness to ideal
+            score = 1.0 - min(1.0, abs(actual_range - ideal_range) / ideal_range)
+            
+            return max(0.3, score)
+            
+        except Exception:
+            return 0.5
+    
+    def _calculate_melodic_score(self, chromosome):
+        """
+        Smooth melodic lines without huge jumps
+        """
+        try:
+            melody = chromosome.tracks[2] if len(chromosome.tracks) > 2 else []
+            
+            if len(melody) < 3:
+                return 0.5
+            
+            # Calculate intervals between consecutive notes
+            intervals = []
+            for i in range(1, len(melody)):
+                interval = abs(melody[i]['pitch'] - melody[i-1]['pitch'])
+                intervals.append(interval)
+            
+            if not intervals:
+                return 0.5
+            
+            # Good melodies:
+            # 1. Not too many large jumps (> 12 semitones)
+            large_jumps = sum(1 for i in intervals if i > 12)
+            jump_penalty = large_jumps / len(intervals)
+            
+            # 2. Some variety (not all same interval)
+            unique_intervals = len(set(intervals))
+            variety = min(1.0, unique_intervals / 5)
+            
+            # 3. Mostly stepwise motion (intervals of 1-2 semitones)
+            small_steps = sum(1 for i in intervals if i <= 2)
+            step_weight = small_steps / len(intervals)
+            
+            # Combine
+            score = (variety * 0.3) + (step_weight * 0.7)
+            score = score * (1 - jump_penalty * 0.5)
+            
+            return min(1.0, max(0.2, score))
+            
+        except Exception:
+            return 0.5
+    
+    def _calculate_dissonance_score(self, chromosome):
+        """
+        Avoid notes that clash when played together
+        """
+        try:
+            # Get all tracks
             all_notes = []
             for track in chromosome.tracks:
                 all_notes.extend(track)
             
-            if len(all_notes) < 2:
+            if len(all_notes) < 5:
                 return 0.5
             
-            # Notes per second
-            time_range = all_notes[-1]['end'] - all_notes[0]['start']
-            actual_density = len(all_notes) / time_range if time_range > 0 else 4.0
+            # Check for dissonant intervals when notes play simultaneously
+            dissonance_penalty = 0
             
-            # Score based on how close to target
-            density_ratio = min(target_density, actual_density) / max(target_density, actual_density)
+            # Sort by start time
+            all_notes.sort(key=lambda x: x['start'])
             
-            return density_ratio
+            # Check overlapping notes
+            for i in range(len(all_notes)):
+                note1 = all_notes[i]
+                for j in range(i+1, min(i+10, len(all_notes))):
+                    note2 = all_notes[j]
+                    
+                    # If notes overlap in time
+                    if note2['start'] < note1['end']:
+                        interval = abs(note1['pitch'] - note2['pitch']) % 12
+                        
+                        # Dissonant intervals (in semitones)
+                        dissonant = [1, 2, 6, 10, 11]  # minor 2nd, major 2nd, tritone, etc.
+                        
+                        if interval in dissonant:
+                            dissonance_penalty += 1
+            
+            # Normalize penalty
+            total_overlaps = len(all_notes) * 5  # approximate
+            if total_overlaps > 0:
+                penalty_ratio = dissonance_penalty / total_overlaps
+                score = 1.0 - min(1.0, penalty_ratio)
+            else:
+                score = 1.0
+            
+            return score
             
         except Exception:
             return 0.5

@@ -1,6 +1,6 @@
 """
 Bollywood Mashup Generator using Genetic Algorithm
-Main application file
+Main application file - FIXED VERSION
 """
 
 import os
@@ -18,9 +18,13 @@ app = Flask(__name__,
 # Initialize dataset manager
 dataset_manager = DatasetManager()
 
-# Create sample dataset if empty
+# Check if we have songs (loaded automatically in __init__)
 if dataset_manager.get_song_count() == 0:
+    print("📀 No songs found, creating sample dataset...")
     dataset_manager.add_sample_dataset()
+
+print(f"📊 Total songs available: {dataset_manager.get_song_count()}")
+print("=" * 50)
 
 # Store active GA runs
 active_runs = {}
@@ -58,6 +62,12 @@ def generate():
         song2_idx = int(data.get('song2', 1))
         generations = int(data.get('generations', 50))
         population_size = int(data.get('population_size', 50))
+        
+        print(f"\n🎮 Generating mashup:")
+        print(f"   Song 1: {dataset_manager.get_song_names()[song1_idx]}")
+        print(f"   Song 2: {dataset_manager.get_song_names()[song2_idx]}")
+        print(f"   Generations: {generations}")
+        print(f"   Population: {population_size}")
         
         # Prepare data for GA
         ga_input = dataset_manager.prepare_for_ga(song1_idx, song2_idx)
@@ -112,9 +122,12 @@ def generate():
             'midi_file': midi_filename
         }
         
+        print(f"✅ Generation complete! Best fitness: {best.fitness:.3f}")
+        
         return jsonify(response)
         
     except Exception as e:
+        print(f"❌ Error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -127,7 +140,8 @@ def download_midi(run_id):
         midi_file = active_runs[run_id]['midi_file']
         midi_path = os.path.join('data', 'generated', midi_file)
         if os.path.exists(midi_path):
-            return send_file(midi_path, as_attachment=True)
+            return send_file(midi_path, as_attachment=True, 
+                           download_name=f"bollywood_mashup_{run_id}.mid")
     
     return jsonify({'error': 'File not found'}), 404
 
@@ -148,9 +162,8 @@ def get_run_info(run_id):
     return jsonify({'error': 'Run not found'}), 404
 
 if __name__ == '__main__':
-    print("🎵 Starting Bollywood Mashup Generator...")
-    print("=" * 50)
-    print(f"📀 Songs available: {dataset_manager.get_song_count()}")
+    print("\n🎵 Starting Bollywood Mashup Generator...")
+    print(f"📀 {dataset_manager.get_song_count()} songs loaded!")
     print("📍 Open http://127.0.0.1:5000 in your browser")
     print("=" * 50)
     app.run(debug=True)

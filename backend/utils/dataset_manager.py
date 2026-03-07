@@ -1,5 +1,6 @@
 """
 Dataset Manager for handling Bollywood MIDI files
+FORCE LOAD REAL MIDIS VERSION - WITH SUBFOLDER SUPPORT
 """
 
 import os
@@ -17,19 +18,183 @@ class DatasetManager:
     def __init__(self, data_dir='data'):
         self.data_dir = data_dir
         self.midi_dir = os.path.join(data_dir, 'midi_files')
+        self.real_midi_dir = os.path.join(data_dir, 'real_midi_files')
         self.processed_dir = os.path.join(data_dir, 'processed')
         self.cache_file = os.path.join(data_dir, 'feature_cache.pkl')
         
         # Create directories
         os.makedirs(self.midi_dir, exist_ok=True)
+        os.makedirs(self.real_midi_dir, exist_ok=True)
         os.makedirs(self.processed_dir, exist_ok=True)
         
         self.parser = BollywoodMIDIParser()
         self.dataset = []
         
-        # Load cache if exists
-        self.load_cache()
+        # FORCE LOAD real MIDIs from Discover MIDI
+        print("\n🔍 FORCE LOADING real MIDI files from Discover MIDI...")
+        loaded = self.load_discover_midi_files()
         
+        if loaded > 0:
+            print(f"✅ Successfully loaded {loaded} REAL MIDI files!")
+            self._save_cache()
+        else:
+            print("❌ No real MIDI files found, loading from cache...")
+            self.load_cache()
+            
+            if len(self.dataset) == 0:
+                print("📀 No cache found, creating samples...")
+                self.add_sample_dataset()
+    
+    def load_discover_midi_files(self):
+    """
+    DIRECTLY load MIDI files from Discover MIDI Dataset (including subfolders)
+    Now with Bollywood filtering!
+    """
+    # Path to Discover MIDI
+    discover_path = "Discover-MIDI-Dataset"
+    if not os.path.exists(discover_path):
+        print(f"❌ Discover MIDI not found at {discover_path}")
+        return 0
+    
+    # Path to MIDIs folder
+    midi_dir = os.path.join(discover_path, "MIDIs")
+    if not os.path.exists(midi_dir):
+        print(f"❌ MIDIs folder not found at {midi_dir}")
+        return 0
+    
+    print(f"📁 Found MIDI folder at: {midi_dir}")
+    
+    # RECURSIVELY find all MIDI files in subfolders
+    all_midis = []
+    print("🔍 Searching for MIDI files in subfolders...")
+    
+    # Walk through all subfolders
+    for root, dirs, files in os.walk(midi_dir):
+        for file in files:
+            if file.endswith('.mid') or file.endswith('.midi'):
+                full_path = os.path.join(root, file)
+                # Store relative path from midi_dir
+                rel_path = os.path.relpath(full_path, midi_dir)
+                all_midis.append(rel_path)
+    
+    print(f"📀 Found {len(all_midis)} total MIDI files in dataset")
+    
+    # ===== NEW: FILTER FOR BOLLYWOOD/INDIAN SONGS =====
+    print("🔍 Filtering for Bollywood/Indian songs...")
+    
+    # Keywords that might indicate Bollywood/Indian music
+    bollywood_keywords = [
+        'bollywood', 'hindi', 'indian', 'bhangra', 'tamil', 'telugu',
+        'raag', 'raga', 'desi', 'bolly', 'kumar', 'lata', 'rafi',
+        'kishore', 'asha', 'sonu', 'shreya', 'arijit', 'himesh',
+        'pritam', 'rahman', 'anand', 'rajesh', 'mukesh', 'mahendra',
+        'hindustani', 'carnatic', 'filmi', 'sargam', 'taal', 'tala',
+        'dhun', 'thumri', 'ghazal', 'bhajan', 'qawwali', 'sufi'
+    ]
+    
+    # Filter MIDIs that might be Bollywood
+    bollywood_midis = []
+    for midi_path in all_midis:
+        lower_path = midi_path.lower()
+        if any(keyword in lower_path for keyword in bollywood_keywords):
+            bollywood_midis.append(midi_path)
+    
+    print(f"🎵 Found {len(bollywood_midis)} potential Bollywood MIDI files")
+    
+    # If we found Bollywood songs, use those instead of random
+    if len(bollywood_midis) > 0:
+        all_midis = bollywood_midis
+        print(f"✅ Using {len(all_midis)} Bollywood files!")
+    else:
+        print("⚠️ No Bollywood files found, using random files")
+    # ===== END OF NEW FILTER =====
+    
+    if len(all_midis) == 0:
+        print("❌ No MIDI files found anywhere!")
+        return 0
+    
+    # Show which subfolders have files
+    subfolders = {}
+    for midi_path in all_midis[:100]:  # Check first 100
+        if '\\' in midi_path:
+            folder = midi_path.split('\\')[0]
+        elif '/' in midi_path:
+            folder = midi_path.split('/')[0]
+        else:
+            folder = 'root'
+        subfolders[folder] = subfolders.get(folder, 0) + 1
+    
+    print(f"📊 MIDI files distribution (sample):")
+    for folder, count in list(subfolders.items())[:10]:
+        print(f"   Folder '{folder}': {count} files in sample")
+    
+    # Load a variety of files from different subfolders
+    sample_size = min(50, len(all_midis))
+    
+    # Use random sampling to get variety
+    import random
+    selected_indices = random.sample(range(len(all_midis)), sample_size)
+    selected_midis = [all_midis[i] for i in selected_indices]
+    
+    print(f"📊 Loading {sample_size} random MIDI files from various subfolders...")
+    
+    loaded_count = 0
+    for i, rel_path in enumerate(selected_midis):
+        try:
+            # Full path to file
+            full_path = os.path.join(midi_dir, rel_path)
+            filename = os.path.basename(rel_path)
+            
+            print(f"   Loading {i+1}/{sample_size}: {rel_path[:40]}...")
+            
+            parsed = self.parser.parse_midi(full_path)
+            
+            if parsed:
+                # Create a nice display name using the subfolder and filename
+                folder_name = os.path.dirname(rel_path)
+                if folder_name:
+                    name = f"[{folder_name}] {filename}"
+                else:
+                    name = filename
+                
+                name = name.replace('.mid', '').replace('.midi', '')
+                name = name.replace('_', ' ').replace('-', ' ')
+                
+                # Remove numbers at start
+                import re
+                name = re.sub(r'^\d+\s*', '', name)
+                
+                # Truncate if too long
+                if len(name) > 45:
+                    name = name[:42] + "..."
+                
+                # If name is empty after cleaning, use path
+                if not name.strip():
+                    name = f"Song from {folder_name if folder_name else 'root'}"
+                
+                # Add metadata
+                parsed['metadata'] = {
+                    'name': name.strip(),
+                    'original_filename': filename,
+                    'folder': folder_name,
+                    'full_path': rel_path,
+                    'source': 'Discover MIDI',
+                    'is_real': True,
+                    'is_bollywood': any(k in rel_path.lower() for k in bollywood_keywords),  # NEW
+                    'index': i
+                }
+                
+                self.dataset.append(parsed)
+                loaded_count += 1
+                
+        except Exception as e:
+            print(f"      ⚠️ Error loading {rel_path}: {e}")
+    
+        print(f"✅ Loaded {loaded_count} MIDI files!")
+        bollywood_count = sum(1 for s in self.dataset if s.get('metadata', {}).get('is_bollywood', False))
+        print(f"   🎵 Bollywood files: {bollywood_count}")
+        return loaded_count
+    
     def add_sample_dataset(self):
         """Create sample dataset for testing"""
         print("📀 Creating sample dataset...")
@@ -37,39 +202,39 @@ class DatasetManager:
         # Create 5 sample songs
         sample_songs = [
             {
-                'name': 'Kal Ho Na Ho',
+                'name': 'Kal Ho Na Ho (Sample)',
                 'raga': 'yaman',
                 'tempo': 95,
                 'mood': 'emotional',
-                'scale': [0, 2, 4, 5, 7, 9, 11]  # C major
+                'scale': [0, 2, 4, 5, 7, 9, 11]
             },
             {
-                'name': 'Tum Hi Ho',
+                'name': 'Tum Hi Ho (Sample)',
                 'raga': 'bhairav',
                 'tempo': 85,
                 'mood': 'romantic',
-                'scale': [0, 1, 4, 5, 7, 8, 11]  # C bhairav
+                'scale': [0, 1, 4, 5, 7, 8, 11]
             },
             {
-                'name': 'Bole Chudiyan',
+                'name': 'Bole Chudiyan (Sample)',
                 'raga': 'desh',
                 'tempo': 120,
                 'mood': 'celebratory',
-                'scale': [0, 2, 4, 5, 7, 9, 10]  # C desh
+                'scale': [0, 2, 4, 5, 7, 9, 10]
             },
             {
-                'name': 'Kabira',
+                'name': 'Kabira (Sample)',
                 'raga': 'bhimpalasi',
                 'tempo': 90,
                 'mood': 'soulful',
-                'scale': [0, 2, 3, 5, 7, 8, 10]  # C bhimpalasi
+                'scale': [0, 2, 3, 5, 7, 8, 10]
             },
             {
-                'name': 'Gerua',
+                'name': 'Gerua (Sample)',
                 'raga': 'kafi',
                 'tempo': 100,
                 'mood': 'romantic',
-                'scale': [0, 2, 3, 5, 7, 8, 10]  # C kafi
+                'scale': [0, 2, 3, 5, 7, 8, 10]
             }
         ]
         
@@ -94,17 +259,15 @@ class DatasetManager:
                 'metadata': {
                     'name': song['name'],
                     'mood': song['mood'],
-                    'era': '2000s',
-                    'movie': 'Bollywood'
+                    'source': 'sample',
+                    'is_real': False
                 }
             }
             
             self.dataset.append(song_entry)
         
-        # Save to cache
-        self._save_cache()
         print(f"✅ Added {len(self.dataset)} sample songs")
-        
+    
     def _create_dummy_tracks(self, song_info):
         """Create dummy MIDI tracks for testing"""
         
@@ -112,25 +275,52 @@ class DatasetManager:
         scale = song_info['scale']
         tempo = song_info['tempo']
         
-        # 1. Drum track (simplified)
+        # Make each song slightly different by using a seed
+        seed = hash(song_info['name']) % 100
+        
+        # 1. Drum track with different patterns
         drums = []
         for i in range(0, 32):
-            beat = i * (60 / tempo)  # Time in seconds
-            drums.append({
-                'pitch': 36 + (i % 4),  # Different drum sounds
-                'start': beat,
-                'end': beat + 0.1,
-                'velocity': 100,
-                'duration': 0.1
-            })
+            beat = i * (60 / tempo)
+            # Different drum patterns based on song
+            if seed % 3 == 0:
+                # Pattern A
+                if i % 4 == 0:
+                    drums.append({
+                        'pitch': 36,  # Bass drum
+                        'start': beat,
+                        'end': beat + 0.1,
+                        'velocity': 100,
+                        'duration': 0.1
+                    })
+            elif seed % 3 == 1:
+                # Pattern B
+                if i % 2 == 0:
+                    drums.append({
+                        'pitch': 38,  # Snare
+                        'start': beat,
+                        'end': beat + 0.1,
+                        'velocity': 90,
+                        'duration': 0.1
+                    })
+            else:
+                # Pattern C
+                if i % 6 == 0:
+                    drums.append({
+                        'pitch': 42,  # Closed hi-hat
+                        'start': beat,
+                        'end': beat + 0.1,
+                        'velocity': 80,
+                        'duration': 0.1
+                    })
         tracks.append(drums)
         
-        # 2. Bass track (simple bassline)
+        # 2. Bass track with different root notes
         bass = []
-        base_note = 40  # E2
+        base_note = 40 + (seed % 5)  # Different bass notes per song
         for i in range(0, 16):
-            beat = i * (60 / tempo) * 2  # Half as many notes
-            scale_note = scale[i % len(scale)]
+            beat = i * (60 / tempo) * 2
+            scale_note = scale[(i + seed) % len(scale)]
             bass.append({
                 'pitch': base_note + scale_note,
                 'start': beat,
@@ -140,13 +330,22 @@ class DatasetManager:
             })
         tracks.append(bass)
         
-        # 3. Melody track (main tune)
+        # 3. Melody track with different patterns
         melody = []
-        base_melody = 60  # C4
-        # Create a simple ascending-descending pattern
-        pattern = scale + scale[::-1]
+        base_melody = 60 + (seed % 3)  # Different starting notes
+        
+        # Different melodic patterns
+        if seed % 4 == 0:
+            pattern = scale + scale[::-1]  # Up and down
+        elif seed % 4 == 1:
+            pattern = [scale[0], scale[2], scale[4], scale[6], scale[4], scale[2]]  # Arpeggio
+        elif seed % 4 == 2:
+            pattern = scale * 2  # Repetition
+        else:
+            pattern = scale + [scale[4], scale[5], scale[6]]  # Custom
+        
         for i in range(0, 32):
-            beat = i * (60 / tempo) / 2  # Twice as many notes
+            beat = i * (60 / tempo) / 2
             note_idx = i % len(pattern)
             melody.append({
                 'pitch': base_melody + pattern[note_idx],
@@ -193,6 +392,7 @@ class DatasetManager:
         try:
             with open(self.cache_file, 'wb') as f:
                 pickle.dump(self.dataset, f)
+            print(f"💾 Saved {len(self.dataset)} songs to cache")
         except Exception as e:
             print(f"Error saving cache: {e}")
     
@@ -214,13 +414,45 @@ class DatasetManager:
         return None
     
     def get_song_names(self):
-        """Get list of song names"""
+        """Get list of UNIQUE and readable song names"""
         names = []
-        for song in self.dataset:
+        used_names = set()
+        
+        for i, song in enumerate(self.dataset):
+            # Try to get a meaningful name
             if 'metadata' in song and 'name' in song['metadata']:
-                names.append(song['metadata']['name'])
+                base_name = song['metadata']['name']
+            elif 'filename' in song:
+                # Clean up filename
+                base_name = song['filename'].replace('.mid', '').replace('.midi', '')
+                base_name = base_name.replace('_', ' ').replace('-', ' ')
+                # Remove numbers at start
+                import re
+                base_name = re.sub(r'^\d+\s*', '', base_name)
+                base_name = base_name.strip()
             else:
-                names.append(song.get('filename', 'Unknown'))
+                base_name = f"Song {i+1}"
+            
+            # Add emoji for real songs
+            if song.get('metadata', {}).get('is_real', False):
+                base_name = f"🎵 {base_name}"
+            
+            # Truncate if too long
+            if len(base_name) > 40:
+                base_name = base_name[:37] + "..."
+            
+            # Make name unique if duplicate
+            if base_name in used_names:
+                counter = 2
+                while f"{base_name} ({counter})" in used_names:
+                    counter += 1
+                display_name = f"{base_name} ({counter})"
+            else:
+                display_name = base_name
+            
+            used_names.add(display_name)
+            names.append(display_name)
+        
         return names
     
     def get_song_count(self):
@@ -234,27 +466,77 @@ class DatasetManager:
         song1 = self.dataset[song1_idx]
         song2 = self.dataset[song2_idx]
         
-        # Combine tracks from both songs
-        # We want: drums from song1, bass from song2, melody from song1
-        source_tracks = [
-            song1['tracks'][0],  # Drums from song1
-            song2['tracks'][1],  # Bass from song2
-            song1['tracks'][2]   # Melody from song1
-        ]
+        # Make sure we have enough tracks
+        tracks1 = song1['tracks']
+        tracks2 = song2['tracks']
+        
+        # Pad tracks if needed
+        while len(tracks1) < 3:
+            tracks1.append([])
+        while len(tracks2) < 3:
+            tracks2.append([])
+        
+        # Combine tracks from both songs with some randomness
+        import random
+        seed = random.randint(0, 2)
+        
+        if seed == 0:
+            # Original pattern: drums from 1, bass from 2, melody from 1
+            source_tracks = [
+                tracks1[0] if len(tracks1) > 0 else [],
+                tracks2[1] if len(tracks2) > 1 else [],
+                tracks1[2] if len(tracks1) > 2 else []
+            ]
+        elif seed == 1:
+            # Pattern 2: drums from 2, bass from 1, melody from 2
+            source_tracks = [
+                tracks2[0] if len(tracks2) > 0 else [],
+                tracks1[1] if len(tracks1) > 1 else [],
+                tracks2[2] if len(tracks2) > 2 else []
+            ]
+        else:
+            # Pattern 3: mixed
+            source_tracks = [
+                tracks1[0] if len(tracks1) > 0 else [],
+                tracks1[1] if len(tracks1) > 1 else [],
+                tracks2[2] if len(tracks2) > 2 else []
+            ]
         
         # Extract features for fitness functions
         source_features = {
-            'raga1': song1.get('raga', {}),
-            'raga2': song2.get('raga', {}),
+            'raga1': song1.get('raga', {'name': 'unknown', 'notes': [0,2,4,5,7,9,11]}),
+            'raga2': song2.get('raga', {'name': 'unknown', 'notes': [0,2,4,5,7,9,11]}),
             'density1': song1['features']['note_density'][2] if len(song1['features']['note_density']) > 2 else 4.0,
             'density2': song2['features']['note_density'][2] if len(song2['features']['note_density']) > 2 else 4.0,
-            'tempo1': song1['tempo'],
-            'tempo2': song2['tempo']
+            'tempo1': song1.get('tempo', 100),
+            'tempo2': song2.get('tempo', 100)
         }
+        
+        # Get song names
+        song1_name = song1.get('metadata', {}).get('name', 
+                     song1.get('filename', 'Song 1').replace('.mid', ''))
+        song2_name = song2.get('metadata', {}).get('name', 
+                     song2.get('filename', 'Song 2').replace('.mid', ''))
+        
+        # Clean names
+        song1_name = song1_name.replace('_', ' ').replace('-', ' ').strip()
+        song2_name = song2_name.replace('_', ' ').replace('-', ' ').strip()
+        
+        # Add emoji for real songs
+        if song1.get('metadata', {}).get('is_real', False):
+            song1_name = f"🎵 {song1_name}"
+        if song2.get('metadata', {}).get('is_real', False):
+            song2_name = f"🎵 {song2_name}"
+        
+        # Truncate if needed
+        if len(song1_name) > 35:
+            song1_name = song1_name[:32] + "..."
+        if len(song2_name) > 35:
+            song2_name = song2_name[:32] + "..."
         
         return {
             'source_tracks': source_tracks,
             'source_features': source_features,
-            'song1_name': song1.get('metadata', {}).get('name', 'Song 1'),
-            'song2_name': song2.get('metadata', {}).get('name', 'Song 2')
+            'song1_name': song1_name,
+            'song2_name': song2_name
         }
