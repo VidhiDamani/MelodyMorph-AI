@@ -53,6 +53,58 @@ def get_songs():
         'count': len(songs)
     })
 
+@app.route('/api/preview/<int:song_idx>')
+def preview_song(song_idx):
+    """Generate and return a 10-second MIDI preview of a song"""
+    try:
+        song = dataset_manager.get_song(song_idx)
+        if not song:
+            return jsonify({'error': 'Song not found'}), 404
+        
+        import pretty_midi
+        
+        # Create a short MIDI from the song's tracks
+        midi = pretty_midi.PrettyMIDI(initial_tempo=song.get('tempo', 120))
+        
+        # Use melody track (index 2) or fallback to any available track
+        tracks = song.get('tracks', [])
+        track_to_use = None
+        for idx in [2, 1, 0]:  # Prefer melody, then bass, then drums
+            if idx < len(tracks) and tracks[idx]:
+                track_to_use = tracks[idx]
+                break
+        
+        if not track_to_use:
+            return jsonify({'error': 'No playable track found'}), 404
+        
+        # Filter notes to first 10 seconds
+        instrument = pretty_midi.Instrument(program=0, name='Preview')
+        for note in track_to_use:
+            if note['start'] < 10.0:
+                end = min(note['end'], 10.0)
+                midi_note = pretty_midi.Note(
+                    velocity=min(120, max(40, note.get('velocity', 90))),
+                    pitch=max(21, min(108, int(note['pitch']))),
+                    start=note['start'],
+                    end=end
+                )
+                instrument.notes.append(midi_note)
+        
+        if not instrument.notes:
+            return jsonify({'error': 'No notes in preview range'}), 404
+        
+        midi.instruments.append(instrument)
+        
+        # Save to temp file
+        preview_path = os.path.join('data', 'generated', f'preview_{song_idx}.mid')
+        midi.write(preview_path)
+        
+        return send_file(preview_path, mimetype='audio/midi',
+                        download_name=f'preview_{song_idx}.mid')
+    except Exception as e:
+        print(f"Preview error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/generate', methods=['POST'])
 def generate():
     """Generate mashup using GA"""

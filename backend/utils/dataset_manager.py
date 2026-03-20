@@ -1,6 +1,6 @@
 """
 Dataset Manager for handling Bollywood MIDI files
-FORCE LOAD REAL MIDIS VERSION - WITH SUBFOLDER SUPPORT
+COMPLETE UPDATED VERSION - VERTICAL MASHUP support
 """
 
 import os
@@ -30,166 +30,172 @@ class DatasetManager:
         self.parser = BollywoodMIDIParser()
         self.dataset = []
         
-        # FORCE LOAD real MIDIs from Discover MIDI
-        print("\n🔍 FORCE LOADING real MIDI files from Discover MIDI...")
-        loaded = self.load_discover_midi_files()
+        # Cache-first: try loading from cache for instant startup
+        self.load_cache()
         
-        if loaded > 0:
-            print(f"✅ Successfully loaded {loaded} REAL MIDI files!")
-            self._save_cache()
+        if len(self.dataset) > 0:
+            print(f"⚡ Loaded {len(self.dataset)} songs from cache (instant)")
         else:
-            print("❌ No real MIDI files found, loading from cache...")
-            self.load_cache()
+            # Only scan filesystem if cache is empty
+            print("\n🔍 No cache found, scanning MIDI files from Discover MIDI...")
+            loaded = self.load_discover_midi_files()
             
-            if len(self.dataset) == 0:
-                print("📀 No cache found, creating samples...")
+            if loaded > 0:
+                print(f"✅ Successfully loaded {loaded} REAL MIDI files!")
+                self._save_cache()
+            else:
+                print("📀 No MIDI files found, creating samples...")
                 self.add_sample_dataset()
     
     def load_discover_midi_files(self):
-    """
-    DIRECTLY load MIDI files from Discover MIDI Dataset (including subfolders)
-    Now with Bollywood filtering!
-    """
-    # Path to Discover MIDI
-    discover_path = "Discover-MIDI-Dataset"
-    if not os.path.exists(discover_path):
-        print(f"❌ Discover MIDI not found at {discover_path}")
-        return 0
-    
-    # Path to MIDIs folder
-    midi_dir = os.path.join(discover_path, "MIDIs")
-    if not os.path.exists(midi_dir):
-        print(f"❌ MIDIs folder not found at {midi_dir}")
-        return 0
-    
-    print(f"📁 Found MIDI folder at: {midi_dir}")
-    
-    # RECURSIVELY find all MIDI files in subfolders
-    all_midis = []
-    print("🔍 Searching for MIDI files in subfolders...")
-    
-    # Walk through all subfolders
-    for root, dirs, files in os.walk(midi_dir):
-        for file in files:
-            if file.endswith('.mid') or file.endswith('.midi'):
-                full_path = os.path.join(root, file)
-                # Store relative path from midi_dir
-                rel_path = os.path.relpath(full_path, midi_dir)
-                all_midis.append(rel_path)
-    
-    print(f"📀 Found {len(all_midis)} total MIDI files in dataset")
-    
-    # ===== NEW: FILTER FOR BOLLYWOOD/INDIAN SONGS =====
-    print("🔍 Filtering for Bollywood/Indian songs...")
-    
-    # Keywords that might indicate Bollywood/Indian music
-    bollywood_keywords = [
-        'bollywood', 'hindi', 'indian', 'bhangra', 'tamil', 'telugu',
-        'raag', 'raga', 'desi', 'bolly', 'kumar', 'lata', 'rafi',
-        'kishore', 'asha', 'sonu', 'shreya', 'arijit', 'himesh',
-        'pritam', 'rahman', 'anand', 'rajesh', 'mukesh', 'mahendra',
-        'hindustani', 'carnatic', 'filmi', 'sargam', 'taal', 'tala',
-        'dhun', 'thumri', 'ghazal', 'bhajan', 'qawwali', 'sufi'
-    ]
-    
-    # Filter MIDIs that might be Bollywood
-    bollywood_midis = []
-    for midi_path in all_midis:
-        lower_path = midi_path.lower()
-        if any(keyword in lower_path for keyword in bollywood_keywords):
-            bollywood_midis.append(midi_path)
-    
-    print(f"🎵 Found {len(bollywood_midis)} potential Bollywood MIDI files")
-    
-    # If we found Bollywood songs, use those instead of random
-    if len(bollywood_midis) > 0:
-        all_midis = bollywood_midis
-        print(f"✅ Using {len(all_midis)} Bollywood files!")
-    else:
-        print("⚠️ No Bollywood files found, using random files")
-    # ===== END OF NEW FILTER =====
-    
-    if len(all_midis) == 0:
-        print("❌ No MIDI files found anywhere!")
-        return 0
-    
-    # Show which subfolders have files
-    subfolders = {}
-    for midi_path in all_midis[:100]:  # Check first 100
-        if '\\' in midi_path:
-            folder = midi_path.split('\\')[0]
-        elif '/' in midi_path:
-            folder = midi_path.split('/')[0]
+        """
+        DIRECTLY load MIDI files from Discover MIDI Dataset (including subfolders)
+        Now with Bollywood filtering!
+        """
+        # Path to Discover MIDI
+        discover_path = "Discover-MIDI-Dataset"
+        if not os.path.exists(discover_path):
+            print(f"❌ Discover MIDI not found at {discover_path}")
+            return 0
+        
+        # Path to MIDIs folder
+        midi_dir = os.path.join(discover_path, "MIDIs")
+        if not os.path.exists(midi_dir):
+            print(f"❌ MIDIs folder not found at {midi_dir}")
+            return 0
+        
+        print(f"📁 Found MIDI folder at: {midi_dir}")
+        
+        # RECURSIVELY find all MIDI files in subfolders
+        all_midis = []
+        print("🔍 Searching for MIDI files in subfolders...")
+        
+        # Walk through all subfolders
+        file_count = 0
+        for root, dirs, files in os.walk(midi_dir):
+            for file in files:
+                if file.endswith('.mid') or file.endswith('.midi'):
+                    file_count += 1
+                    if file_count % 100000 == 0:  # Progress update every 100k files
+                        print(f"   Found {file_count} files so far...")
+                    full_path = os.path.join(root, file)
+                    # Store relative path from midi_dir
+                    rel_path = os.path.relpath(full_path, midi_dir)
+                    all_midis.append(rel_path)
+        
+        print(f"📀 Found {len(all_midis)} total MIDI files in dataset")
+        
+        # ===== FILTER FOR BOLLYWOOD/INDIAN SONGS =====
+        print("🔍 Filtering for Bollywood/Indian songs...")
+        
+        # Keywords that might indicate Bollywood/Indian music
+        bollywood_keywords = [
+            'bollywood', 'hindi', 'indian', 'bhangra', 'tamil', 'telugu',
+            'raag', 'raga', 'desi', 'bolly', 'kumar', 'lata', 'rafi',
+            'kishore', 'asha', 'sonu', 'shreya', 'arijit', 'himesh',
+            'pritam', 'rahman', 'anand', 'rajesh', 'mukesh', 'mahendra',
+            'hindustani', 'carnatic', 'filmi', 'sargam', 'taal', 'tala',
+            'dhun', 'thumri', 'ghazal', 'bhajan', 'qawwali', 'sufi'
+        ]
+        
+        # Filter MIDIs that might be Bollywood
+        bollywood_midis = []
+        for midi_path in all_midis:
+            lower_path = midi_path.lower()
+            if any(keyword in lower_path for keyword in bollywood_keywords):
+                bollywood_midis.append(midi_path)
+        
+        print(f"🎵 Found {len(bollywood_midis)} potential Bollywood MIDI files")
+        
+        # If we found Bollywood songs, use those instead of random
+        if len(bollywood_midis) > 0:
+            all_midis = bollywood_midis
+            print(f"✅ Using {len(all_midis)} Bollywood files!")
         else:
-            folder = 'root'
-        subfolders[folder] = subfolders.get(folder, 0) + 1
-    
-    print(f"📊 MIDI files distribution (sample):")
-    for folder, count in list(subfolders.items())[:10]:
-        print(f"   Folder '{folder}': {count} files in sample")
-    
-    # Load a variety of files from different subfolders
-    sample_size = min(50, len(all_midis))
-    
-    # Use random sampling to get variety
-    import random
-    selected_indices = random.sample(range(len(all_midis)), sample_size)
-    selected_midis = [all_midis[i] for i in selected_indices]
-    
-    print(f"📊 Loading {sample_size} random MIDI files from various subfolders...")
-    
-    loaded_count = 0
-    for i, rel_path in enumerate(selected_midis):
-        try:
-            # Full path to file
-            full_path = os.path.join(midi_dir, rel_path)
-            filename = os.path.basename(rel_path)
-            
-            print(f"   Loading {i+1}/{sample_size}: {rel_path[:40]}...")
-            
-            parsed = self.parser.parse_midi(full_path)
-            
-            if parsed:
-                # Create a nice display name using the subfolder and filename
-                folder_name = os.path.dirname(rel_path)
-                if folder_name:
-                    name = f"[{folder_name}] {filename}"
-                else:
-                    name = filename
+            print("⚠️ No Bollywood files found, using random files")
+        # ===== END OF FILTER =====
+        
+        if len(all_midis) == 0:
+            print("❌ No MIDI files found anywhere!")
+            return 0
+        
+        # Show which subfolders have files
+        subfolders = {}
+        for midi_path in all_midis[:100]:  # Check first 100
+            if '\\' in midi_path:
+                folder = midi_path.split('\\')[0]
+            elif '/' in midi_path:
+                folder = midi_path.split('/')[0]
+            else:
+                folder = 'root'
+            subfolders[folder] = subfolders.get(folder, 0) + 1
+        
+        print(f"📊 MIDI files distribution (sample):")
+        for folder, count in list(subfolders.items())[:10]:
+            print(f"   Folder '{folder}': {count} files in sample")
+        
+        # Load a variety of files from different subfolders
+        sample_size = min(50, len(all_midis))
+        
+        # Use random sampling to get variety
+        import random
+        selected_indices = random.sample(range(len(all_midis)), sample_size)
+        selected_midis = [all_midis[i] for i in selected_indices]
+        
+        print(f"📊 Loading {sample_size} random MIDI files from various subfolders...")
+        
+        loaded_count = 0
+        for i, rel_path in enumerate(selected_midis):
+            try:
+                # Full path to file
+                full_path = os.path.join(midi_dir, rel_path)
+                filename = os.path.basename(rel_path)
                 
-                name = name.replace('.mid', '').replace('.midi', '')
-                name = name.replace('_', ' ').replace('-', ' ')
+                print(f"   Loading {i+1}/{sample_size}: {rel_path[:40]}...")
                 
-                # Remove numbers at start
-                import re
-                name = re.sub(r'^\d+\s*', '', name)
+                parsed = self.parser.parse_midi(full_path)
                 
-                # Truncate if too long
-                if len(name) > 45:
-                    name = name[:42] + "..."
-                
-                # If name is empty after cleaning, use path
-                if not name.strip():
-                    name = f"Song from {folder_name if folder_name else 'root'}"
-                
-                # Add metadata
-                parsed['metadata'] = {
-                    'name': name.strip(),
-                    'original_filename': filename,
-                    'folder': folder_name,
-                    'full_path': rel_path,
-                    'source': 'Discover MIDI',
-                    'is_real': True,
-                    'is_bollywood': any(k in rel_path.lower() for k in bollywood_keywords),  # NEW
-                    'index': i
-                }
-                
-                self.dataset.append(parsed)
-                loaded_count += 1
-                
-        except Exception as e:
-            print(f"      ⚠️ Error loading {rel_path}: {e}")
-    
+                if parsed:
+                    # Create a nice display name using the subfolder and filename
+                    folder_name = os.path.dirname(rel_path)
+                    if folder_name:
+                        name = f"[{folder_name}] {filename}"
+                    else:
+                        name = filename
+                    
+                    name = name.replace('.mid', '').replace('.midi', '')
+                    name = name.replace('_', ' ').replace('-', ' ')
+                    
+                    # Remove numbers at start
+                    import re
+                    name = re.sub(r'^\d+\s*', '', name)
+                    
+                    # Truncate if too long
+                    if len(name) > 45:
+                        name = name[:42] + "..."
+                    
+                    # If name is empty after cleaning, use path
+                    if not name.strip():
+                        name = f"Song from {folder_name if folder_name else 'root'}"
+                    
+                    # Add metadata
+                    parsed['metadata'] = {
+                        'name': name.strip(),
+                        'original_filename': filename,
+                        'folder': folder_name,
+                        'full_path': rel_path,
+                        'source': 'Discover MIDI',
+                        'is_real': True,
+                        'is_bollywood': any(k in rel_path.lower() for k in bollywood_keywords),
+                        'index': i
+                    }
+                    
+                    self.dataset.append(parsed)
+                    loaded_count += 1
+                    
+            except Exception as e:
+                print(f"      ⚠️ Error loading {rel_path}: {e}")
+        
         print(f"✅ Loaded {loaded_count} MIDI files!")
         bollywood_count = sum(1 for s in self.dataset if s.get('metadata', {}).get('is_bollywood', False))
         print(f"   🎵 Bollywood files: {bollywood_count}")
@@ -414,41 +420,66 @@ class DatasetManager:
         return None
     
     def get_song_names(self):
-        """Get list of UNIQUE and readable song names"""
+        """Get list of readable song names"""
         names = []
         used_names = set()
         
         for i, song in enumerate(self.dataset):
             # Try to get a meaningful name
-            if 'metadata' in song and 'name' in song['metadata']:
-                base_name = song['metadata']['name']
-            elif 'filename' in song:
-                # Clean up filename
-                base_name = song['filename'].replace('.mid', '').replace('.midi', '')
-                base_name = base_name.replace('_', ' ').replace('-', ' ')
-                # Remove numbers at start
-                import re
-                base_name = re.sub(r'^\d+\s*', '', base_name)
-                base_name = base_name.strip()
-            else:
-                base_name = f"Song {i+1}"
-            
-            # Add emoji for real songs
             if song.get('metadata', {}).get('is_real', False):
-                base_name = f"🎵 {base_name}"
-            
-            # Truncate if too long
-            if len(base_name) > 40:
-                base_name = base_name[:37] + "..."
+                # It's a real MIDI file - try to make a nice name
+                folder = song['metadata'].get('folder', '')
+                filename = song['metadata'].get('original_filename', '')
+                is_bollywood = song['metadata'].get('is_bollywood', False)
+                
+                # Try to extract a meaningful name from the path
+                # First, get just the filename without extension
+                name = filename.replace('.mid', '').replace('.midi', '')
+                
+                # Check if it's a hash (all hex characters and long)
+                if len(name) > 20 and all(c in '0123456789abcdef' for c in name.lower()):
+                    # It's probably a hash - use folder info instead
+                    if folder and folder not in ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f']:
+                        name = f"Song from {folder}"
+                    else:
+                        # Try to get the parent folder name
+                        path_parts = song['metadata'].get('full_path', '').split('\\')
+                        if len(path_parts) > 2:
+                            name = f"Song from {path_parts[-2]}"
+                        else:
+                            name = f"Track {i+1}"
+                
+                # Clean up - replace underscores and hyphens with spaces
+                name = name.replace('_', ' ').replace('-', ' ')
+                
+                # Capitalize words
+                name = ' '.join(word.capitalize() for word in name.split())
+                
+                # Remove any weird characters
+                import re
+                name = re.sub(r'[^\w\s]', '', name)
+                
+                # Truncate if too long
+                if len(name) > 35:
+                    name = name[:32] + "..."
+                
+                # Add emoji based on type
+                if is_bollywood:
+                    display_name = f"🎬 {name}"  # Bollywood gets movie emoji
+                else:
+                    display_name = f"🎵 {name}"  # Others get music note
+                
+            else:
+                # It's a sample Bollywood song
+                base_name = song.get('metadata', {}).get('name', f"Sample {i+1}")
+                display_name = f"🎬 {base_name}"
             
             # Make name unique if duplicate
-            if base_name in used_names:
+            if display_name in used_names:
                 counter = 2
-                while f"{base_name} ({counter})" in used_names:
+                while f"{display_name} ({counter})" in used_names:
                     counter += 1
-                display_name = f"{base_name} ({counter})"
-            else:
-                display_name = base_name
+                display_name = f"{display_name} ({counter})"
             
             used_names.add(display_name)
             names.append(display_name)
@@ -461,7 +492,8 @@ class DatasetManager:
     
     def prepare_for_ga(self, song1_idx, song2_idx):
         """
-        Prepare two songs for GA input
+        Prepare two songs for GA input - VERTICAL MASHUP version
+        All tracks will play simultaneously
         """
         song1 = self.dataset[song1_idx]
         song2 = self.dataset[song2_idx]
@@ -476,31 +508,13 @@ class DatasetManager:
         while len(tracks2) < 3:
             tracks2.append([])
         
-        # Combine tracks from both songs with some randomness
-        import random
-        seed = random.randint(0, 2)
-        
-        if seed == 0:
-            # Original pattern: drums from 1, bass from 2, melody from 1
-            source_tracks = [
-                tracks1[0] if len(tracks1) > 0 else [],
-                tracks2[1] if len(tracks2) > 1 else [],
-                tracks1[2] if len(tracks1) > 2 else []
-            ]
-        elif seed == 1:
-            # Pattern 2: drums from 2, bass from 1, melody from 2
-            source_tracks = [
-                tracks2[0] if len(tracks2) > 0 else [],
-                tracks1[1] if len(tracks1) > 1 else [],
-                tracks2[2] if len(tracks2) > 2 else []
-            ]
-        else:
-            # Pattern 3: mixed
-            source_tracks = [
-                tracks1[0] if len(tracks1) > 0 else [],
-                tracks1[1] if len(tracks1) > 1 else [],
-                tracks2[2] if len(tracks2) > 2 else []
-            ]
+        # VERTICAL MASHUP: All tracks play simultaneously
+        # Drums from song1, Bass from song2, Melody from song1
+        source_tracks = [
+            [note.copy() for note in tracks1[0]] if len(tracks1) > 0 and tracks1[0] else [],  # Drums from song1
+            [note.copy() for note in tracks2[1]] if len(tracks2) > 1 and tracks2[1] else [],  # Bass from song2  
+            [note.copy() for note in tracks1[2]] if len(tracks1) > 2 and tracks1[2] else []   # Melody from song1
+        ]
         
         # Extract features for fitness functions
         source_features = {

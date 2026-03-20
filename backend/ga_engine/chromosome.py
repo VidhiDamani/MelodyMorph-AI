@@ -1,7 +1,7 @@
 """
 Chromosome representation for Bollywood mashup
 Each chromosome is a potential mashup solution
-UPDATED VERSION - with better MIDI generation
+UPDATED VERSION - VERTICAL MASHUP (tracks play simultaneously)
 """
 
 import random
@@ -18,7 +18,7 @@ except ImportError:
 
 class BollywoodChromosome:
     """
-    Represents a mashup candidate with multiple tracks
+    Represents a mashup candidate with multiple tracks playing simultaneously
     """
     
     def __init__(self, track_data=None):
@@ -48,7 +48,8 @@ class BollywoodChromosome:
     
     def to_midi(self, output_path):
         """
-        Convert chromosome to MIDI file with better instrument choices
+        Convert chromosome to MIDI file with MULTI-TRACK mixing (vertical mashup)
+        All tracks play SIMULTANEOUSLY
         """
         if not HAS_PRETTY_MIDI:
             print("⚠️ pretty_midi not installed, cannot create MIDI")
@@ -58,124 +59,122 @@ class BollywoodChromosome:
             # Create MIDI object
             midi = pretty_midi.PrettyMIDI(initial_tempo=120)
             
-            # Better instrument mapping for Bollywood sound
-            # Program numbers from General MIDI standard
-            instrument_families = {
+            # Instrument mapping for different tracks
+            instrument_programs = {
                 'drums': [0, 16, 24, 25, 26],      # Piano, Organ, Guitar, Nylon Guitar, Steel Guitar
                 'bass': [32, 33, 34, 35, 43],       # Bass, Bass, Bass, Bass, Contrabass
                 'melody': [40, 41, 42, 48, 56]      # Violin, Viola, Cello, Strings, Trumpet
             }
             
-            # Nice instrument combinations for good mashups
-            good_combinations = [
-                [0, 33, 40],    # Piano, Bass, Violin
-                [24, 35, 48],    # Guitar, Contrabass, Strings
-                [16, 32, 41],    # Organ, Bass, Viola
-                [25, 34, 56],    # Nylon Guitar, Bass, Trumpet
-                [26, 43, 42]     # Steel Guitar, Contrabass, Cello
-            ]
+            # TRACK 0: Drums/Percussion (plays simultaneously with others)
+            if len(self.tracks) > 0 and self.tracks[0]:
+                # Choose instrument
+                instrument_idx = self.control_genes['instrument_choices'][0] % len(instrument_programs['drums'])
+                program = instrument_programs['drums'][instrument_idx]
+                
+                # For drums, use channel 9 (drums)
+                drum_instrument = pretty_midi.Instrument(program=program, is_drum=True, name='Drums')
+                
+                for note in self.tracks[0]:
+                    # Apply tempo scaling only (drums don't pitch shift)
+                    tempo_scale = self.control_genes['tempo_scales'][0]
+                    start = note['start'] * tempo_scale
+                    end = note['end'] * tempo_scale
+                    
+                    # Apply volume
+                    velocity = int(note.get('velocity', 100) * self.control_genes['track_volumes'][0] / 100)
+                    velocity = max(40, min(120, velocity))
+                    
+                    midi_note = pretty_midi.Note(
+                        velocity=velocity,
+                        pitch=note['pitch'],
+                        start=start,
+                        end=end
+                    )
+                    drum_instrument.notes.append(midi_note)
+                
+                if drum_instrument.notes:
+                    midi.instruments.append(drum_instrument)
             
-            for track_idx, track_notes in enumerate(self.tracks):
-                if not track_notes:
-                    continue
+            # TRACK 1: Bass/Harmony (plays simultaneously with others)
+            if len(self.tracks) > 1 and self.tracks[1]:
+                # Choose instrument
+                instrument_idx = self.control_genes['instrument_choices'][1] % len(instrument_programs['bass'])
+                program = instrument_programs['bass'][instrument_idx]
                 
-                # Choose instrument based on fitness and track type
-                if track_idx == 0:
-                    # Drum/rhythm track
-                    if self.fitness > 0.7:
-                        program = instrument_families['drums'][2]  # Guitar for good mashups
-                    elif self.fitness > 0.4:
-                        program = instrument_families['drums'][1]  # Organ
-                    else:
-                        program = instrument_families['drums'][0]  # Piano
-                        
-                elif track_idx == 1:
-                    # Bass track
-                    if self.fitness > 0.7:
-                        program = instrument_families['bass'][3]  # Contrabass
-                    elif self.fitness > 0.4:
-                        program = instrument_families['bass'][1]  # Bass
-                    else:
-                        program = instrument_families['bass'][0]  # Bass
-                        
-                else:
-                    # Melody track
-                    if self.fitness > 0.7:
-                        program = instrument_families['melody'][3]  # Strings
-                    elif self.fitness > 0.4:
-                        program = instrument_families['melody'][0]  # Violin
-                    else:
-                        program = instrument_families['melody'][1]  # Viola
+                bass_instrument = pretty_midi.Instrument(program=program, name='Bass')
                 
-                # Override with instrument choice from genes if available
-                if 'instrument_choices' in self.control_genes:
-                    choice_idx = self.control_genes['instrument_choices'][track_idx % 3]
-                    if track_idx == 0:
-                        program = instrument_families['drums'][choice_idx % len(instrument_families['drums'])]
-                    elif track_idx == 1:
-                        program = instrument_families['bass'][choice_idx % len(instrument_families['bass'])]
-                    else:
-                        program = instrument_families['melody'][choice_idx % len(instrument_families['melody'])]
-                
-                # Create instrument
-                instrument = pretty_midi.Instrument(
-                    program=program,
-                    name=f"Track_{track_idx}"
-                )
-                
-                for note in track_notes:
-                    # Apply pitch shift (limited to avoid chipmunk sounds)
-                    pitch_shift = self.control_genes['pitch_shifts'][track_idx % 3]
+                for note in self.tracks[1]:
+                    # Apply pitch shift
+                    pitch_shift = self.control_genes['pitch_shifts'][1]
                     # Limit extreme shifts
                     if abs(pitch_shift) > 5:
                         pitch_shift = 5 if pitch_shift > 0 else -5
                     
                     pitch = note['pitch'] + pitch_shift
-                    pitch = max(30, min(100, int(pitch)))  # Keep in reasonable range
+                    pitch = max(30, min(100, int(pitch)))
                     
                     # Apply tempo scaling
-                    tempo_scale = self.control_genes['tempo_scales'][track_idx % 3]
-                    # Limit extreme tempo changes
-                    if tempo_scale < 0.8:
-                        tempo_scale = 0.8
-                    if tempo_scale > 1.2:
-                        tempo_scale = 1.2
-                    
+                    tempo_scale = self.control_genes['tempo_scales'][1]
                     start = note['start'] * tempo_scale
                     end = note['end'] * tempo_scale
                     
-                    # Apply volume with some natural variation
-                    base_volume = note.get('velocity', 80)
-                    volume_factor = self.control_genes['track_volumes'][track_idx % 3] / 100
-                    velocity = int(base_volume * volume_factor)
+                    # Apply volume
+                    velocity = int(note.get('velocity', 80) * self.control_genes['track_volumes'][1] / 100)
+                    velocity = max(40, min(120, velocity))
                     
-                    # Add slight variation to make it sound more human
-                    velocity = int(velocity * random.uniform(0.9, 1.1))
-                    velocity = max(40, min(110, velocity))  # Keep in good range
-                    
-                    # Create MIDI note
                     midi_note = pretty_midi.Note(
                         velocity=velocity,
                         pitch=pitch,
                         start=start,
                         end=end
                     )
-                    instrument.notes.append(midi_note)
+                    bass_instrument.notes.append(midi_note)
                 
-                # Sort notes by start time
-                if instrument.notes:
-                    instrument.notes.sort(key=lambda x: x.start)
-                    midi.instruments.append(instrument)
+                if bass_instrument.notes:
+                    midi.instruments.append(bass_instrument)
             
-            # Add some reverb/tempo info (optional)
-            if midi.instruments:
-                # Set a reasonable tempo
-                tempo = 100
-                if hasattr(midi, 'tick_scales'):
-                    pass  # Keep default
+            # TRACK 2: Melody (plays simultaneously with others)
+            if len(self.tracks) > 2 and self.tracks[2]:
+                # Choose instrument
+                instrument_idx = self.control_genes['instrument_choices'][2] % len(instrument_programs['melody'])
+                program = instrument_programs['melody'][instrument_idx]
                 
-                # Save MIDI file
+                melody_instrument = pretty_midi.Instrument(program=program, name='Melody')
+                
+                for note in self.tracks[2]:
+                    # Apply pitch shift
+                    pitch_shift = self.control_genes['pitch_shifts'][2]
+                    if abs(pitch_shift) > 5:
+                        pitch_shift = 5 if pitch_shift > 0 else -5
+                    
+                    pitch = note['pitch'] + pitch_shift
+                    pitch = max(40, min(90, int(pitch)))
+                    
+                    # Apply tempo scaling
+                    tempo_scale = self.control_genes['tempo_scales'][2]
+                    start = note['start'] * tempo_scale
+                    end = note['end'] * tempo_scale
+                    
+                    # Apply volume
+                    velocity = int(note.get('velocity', 90) * self.control_genes['track_volumes'][2] / 100)
+                    velocity = max(40, min(120, velocity))
+                    
+                    midi_note = pretty_midi.Note(
+                        velocity=velocity,
+                        pitch=pitch,
+                        start=start,
+                        end=end
+                    )
+                    melody_instrument.notes.append(midi_note)
+                
+                if melody_instrument.notes:
+                    midi.instruments.append(melody_instrument)
+            
+            # Save MIDI file
+            if midi.instruments:
                 midi.write(output_path)
+                print(f"✅ Created vertical mashup with {len(midi.instruments)} tracks playing together")
                 return True
             else:
                 print("⚠️ No instruments with notes to save")
@@ -188,40 +187,34 @@ class BollywoodChromosome:
     @staticmethod
     def create_random(source_tracks, length_bars=4):
         """
-        Create random chromosome from source tracks with more variety
+        Create random chromosome from source tracks with overlapping tracks
+        All tracks will play simultaneously in final output
         """
         chromosome = BollywoodChromosome()
         chromosome.tracks = []
         
-        # For each track position (0=drums, 1=bass, 2=melody)
-        for track_idx in range(3):
-            if track_idx < len(source_tracks) and source_tracks[track_idx]:
-                # Get source track
-                source = source_tracks[track_idx]
-                
-                if len(source) > 8:  # If enough notes
-                    # Select random segment with some variety in length
-                    segment_length = min(random.randint(6, 12) * 2, len(source))
-                    max_start = max(0, len(source) - segment_length)
-                    start_idx = random.randint(0, max_start)
-                    
-                    # Sometimes take multiple segments and combine
-                    if random.random() > 0.7 and max_start > segment_length:
-                        # Take two segments and splice them
-                        start2 = random.randint(0, max_start)
-                        segment1 = source[start_idx:start_idx + segment_length//2]
-                        segment2 = source[start2:start2 + segment_length//2]
-                        segment = segment1 + segment2
-                    else:
-                        segment = source[start_idx:start_idx + segment_length]
-                else:
-                    segment = source.copy()
-                
-                chromosome.tracks.append(segment)
-            else:
-                chromosome.tracks.append([])
+        # Track 0: Drums from source 0 (full length)
+        if len(source_tracks) > 0 and source_tracks[0]:
+            drums = [note.copy() for note in source_tracks[0]]  # Deep copy
+            chromosome.tracks.append(drums)
+        else:
+            chromosome.tracks.append([])
         
-        # Random control genes with more variety
+        # Track 1: Bass from source 1 (full length, plays simultaneously)
+        if len(source_tracks) > 1 and source_tracks[1]:
+            bass = [note.copy() for note in source_tracks[1]]  # Deep copy
+            chromosome.tracks.append(bass)
+        else:
+            chromosome.tracks.append([])
+        
+        # Track 2: Melody from source 2 (full length, plays simultaneously)
+        if len(source_tracks) > 2 and source_tracks[2]:
+            melody = [note.copy() for note in source_tracks[2]]  # Deep copy
+            chromosome.tracks.append(melody)
+        else:
+            chromosome.tracks.append([])
+        
+        # Random control genes
         chromosome.control_genes['pitch_shifts'] = [
             random.randint(-3, 3) for _ in range(3)
         ]
@@ -252,11 +245,11 @@ class BollywoodChromosome:
         
         for i in range(len(self.tracks)):
             if i < point:
-                child1_tracks.append(self.tracks[i])
-                child2_tracks.append(other.tracks[i])
+                child1_tracks.append([note.copy() for note in self.tracks[i]] if self.tracks[i] else [])
+                child2_tracks.append([note.copy() for note in other.tracks[i]] if other.tracks[i] else [])
             else:
-                child1_tracks.append(other.tracks[i])
-                child2_tracks.append(self.tracks[i])
+                child1_tracks.append([note.copy() for note in other.tracks[i]] if other.tracks[i] else [])
+                child2_tracks.append([note.copy() for note in self.tracks[i]] if self.tracks[i] else [])
         
         child1 = BollywoodChromosome(child1_tracks)
         child2 = BollywoodChromosome(child2_tracks)
@@ -285,7 +278,16 @@ class BollywoodChromosome:
         """
         Apply random mutations to create a variant
         """
-        mutated = BollywoodChromosome([track[:] for track in self.tracks])
+        mutated = BollywoodChromosome()
+        mutated.tracks = []
+        
+        # Deep copy tracks
+        for track in self.tracks:
+            if track:
+                mutated.tracks.append([note.copy() for note in track])
+            else:
+                mutated.tracks.append([])
+        
         mutated.control_genes = {k: v.copy() for k, v in self.control_genes.items()}
         
         # Mutate pitch shifts
@@ -319,26 +321,6 @@ class BollywoodChromosome:
         for i in range(len(mutated.control_genes.get('instrument_choices', [0,0,0]))):
             if random.random() < mutation_rate:
                 mutated.control_genes['instrument_choices'][i] = random.randint(0, 4)
-        
-        # Sometimes swap a few notes between tracks for variety
-        if random.random() < mutation_rate / 2:
-            if len(mutated.tracks) >= 2:
-                track1 = random.randint(0, len(mutated.tracks) - 1)
-                track2 = random.randint(0, len(mutated.tracks) - 1)
-                if (track1 != track2 and 
-                    mutated.tracks[track1] and 
-                    mutated.tracks[track2] and
-                    len(mutated.tracks[track1]) > 0 and 
-                    len(mutated.tracks[track2]) > 0):
-                    
-                    idx1 = random.randint(0, len(mutated.tracks[track1]) - 1)
-                    idx2 = random.randint(0, len(mutated.tracks[track2]) - 1)
-                    
-                    # Swap notes
-                    (mutated.tracks[track1][idx1], 
-                     mutated.tracks[track2][idx2]) = \
-                        (mutated.tracks[track2][idx2], 
-                         mutated.tracks[track1][idx1])
         
         return mutated
     

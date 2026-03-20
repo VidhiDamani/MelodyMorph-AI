@@ -1,7 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bollywood Mashup GA</title>
+    <meta name="description" content="Create unique Bollywood melodies using Genetic Algorithm. Mix and match songs to generate stunning mashups.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MIDI.js for in-browser MIDI playback -->
+    <script src="https://cdn.jsdelivr.net/npm/@magenta/music@1.23.1/es6/core.js"></script>
     <style>
         * {
             margin: 0;
@@ -10,304 +20,585 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 24px;
+            color: #e0e0e0;
         }
-        
+
         .container {
-            max-width: 1200px;
+            max-width: 1100px;
             margin: 0 auto;
         }
-        
+
+        /* ── Header ────────────────────────────────────── */
         .header {
             text-align: center;
             color: white;
-            margin-bottom: 30px;
+            margin-bottom: 36px;
+            padding-top: 12px;
         }
-        
+
         .header h1 {
-            font-size: 3em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-size: 2.6em;
+            font-weight: 800;
+            background: linear-gradient(135deg, #f9d423, #ff4e50);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
         }
-        
+
+        .header h1 i { -webkit-text-fill-color: initial; color: #f9d423; }
+
         .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
+            font-size: 1.05em;
+            opacity: 0.7;
+            font-weight: 400;
         }
-        
+
+        /* ── Main Card ─────────────────────────────────── */
         .main-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255,255,255,0.1);
             border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            backdrop-filter: blur(10px);
-            margin-bottom: 30px;
+            padding: 32px;
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            margin-bottom: 28px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
         }
-        
+
         .section-title {
-            color: #333;
+            color: #fff;
             margin-bottom: 20px;
-            font-size: 1.5em;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
+            font-size: 1.2em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 12px;
         }
-        
+
+        .section-title i { color: #f9d423; width: 20px; height: 20px; }
+
+        /* ── Song Selector ─────────────────────────────── */
         .song-selector {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
+            gap: 24px;
+            margin-bottom: 28px;
         }
-        
+
         .song-box {
-            background: #f5f5f5;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
             padding: 20px;
-            border-radius: 15px;
-            border: 2px solid transparent;
-            transition: all 0.3s;
+            border-radius: 14px;
+            transition: all 0.3s ease;
         }
-        
+
         .song-box:hover {
-            border-color: #667eea;
+            border-color: rgba(249,212,35,0.4);
+            background: rgba(255,255,255,0.07);
             transform: translateY(-2px);
         }
-        
+
         .song-box label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #fff;
+            font-size: 0.95em;
         }
-        
+
+        .song-box label i { width: 18px; height: 18px; color: #f9d423; }
+
+        .song-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
         .song-box select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 1em;
-            background: white;
+            flex: 1;
+            padding: 11px 14px;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px;
+            font-size: 0.9em;
+            background: rgba(0,0,0,0.35);
+            color: #e0e0e0;
             cursor: pointer;
+            font-family: inherit;
+            transition: border-color 0.2s;
         }
-        
+
+        .song-box select:focus { border-color: #f9d423; outline: none; }
+        .song-box select option { background: #1a1a2e; color: #e0e0e0; }
+
+        .preview-btn {
+            background: linear-gradient(135deg, #f9d423, #ff4e50);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+            flex-shrink: 0;
+            color: #fff;
+        }
+        .preview-btn:hover {
+            transform: scale(1.12);
+            box-shadow: 0 4px 16px rgba(249,212,35,0.4);
+        }
+        .preview-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .preview-btn i { width: 18px; height: 18px; }
+
+        .preview-status {
+            font-size: 0.75em;
+            color: rgba(249,212,35,0.8);
+            margin-top: 8px;
+            min-height: 18px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .preview-status i { width: 14px; height: 14px; }
+
+        /* ── Parameters ────────────────────────────────── */
         .parameters {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
+            gap: 18px;
+            margin-bottom: 28px;
         }
-        
+
         .param-item {
-            background: #f5f5f5;
-            padding: 15px;
-            border-radius: 10px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 16px 18px;
+            border-radius: 12px;
         }
-        
+
         .param-item label {
-            display: block;
-            margin-bottom: 8px;
-            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            color: #ccc;
             font-weight: 500;
+            font-size: 0.9em;
         }
-        
-        .param-item input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 1em;
+
+        .param-item label i { width: 16px; height: 16px; color: #a78bfa; }
+
+        .param-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        
+
         .param-item input[type=range] {
-            padding: 0;
+            flex: 1;
+            accent-color: #a78bfa;
+            height: 6px;
         }
-        
+
+        .param-value {
+            background: rgba(167,139,250,0.15);
+            color: #a78bfa;
+            font-weight: 700;
+            font-size: 0.95em;
+            padding: 4px 10px;
+            border-radius: 6px;
+            min-width: 36px;
+            text-align: center;
+        }
+
+        /* ── Generate Button ───────────────────────────── */
         .generate-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, #f9d423 0%, #ff4e50 100%);
+            color: #1a1a2e;
             border: none;
-            padding: 15px 40px;
-            font-size: 1.2em;
+            padding: 16px 36px;
+            font-size: 1.1em;
             border-radius: 50px;
             cursor: pointer;
             width: 100%;
             transition: transform 0.2s, box-shadow 0.2s;
-            font-weight: bold;
-            letter-spacing: 1px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
-        
+
         .generate-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 8px 28px rgba(249,212,35,0.35);
         }
-        
+
         .generate-btn:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
-        
+
+        .generate-btn i { width: 20px; height: 20px; }
+
+        /* ── Progress ──────────────────────────────────── */
         .progress-section {
-            margin-top: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 15px;
+            margin-top: 28px;
+            padding: 24px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
             display: none;
         }
-        
+
+        .progress-section h3 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            font-size: 1.1em;
+            margin-bottom: 16px;
+        }
+        .progress-section h3 i { color: #a78bfa; width: 20px; height: 20px; }
+
         .progress-bar {
             width: 100%;
-            height: 20px;
-            background: #e0e0e0;
-            border-radius: 10px;
+            height: 8px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 8px;
             overflow: hidden;
-            margin: 15px 0;
+            margin: 16px 0;
         }
-        
+
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, #a78bfa, #f9d423);
             width: 0%;
             transition: width 0.3s;
+            border-radius: 8px;
         }
-        
+
+        /* ── Stats Grid ────────────────────────────────── */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin: 20px 0;
+            gap: 14px;
+            margin: 18px 0;
         }
-        
+
         .stat-box {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 16px;
+            border-radius: 12px;
             text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: border-color 0.3s;
         }
-        
+
+        .stat-box:hover { border-color: rgba(167,139,250,0.3); }
+
+        .stat-icon {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: center;
+        }
+        .stat-icon i { width: 20px; height: 20px; color: #a78bfa; }
+
         .stat-value {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #667eea;
+            font-size: 1.7em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a78bfa, #f9d423);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
-        
+
         .stat-label {
-            color: #666;
-            font-size: 0.9em;
-            margin-top: 5px;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.8em;
+            margin-top: 4px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        
+
+        /* ── Fitness Chart ─────────────────────────────── */
         .fitness-chart {
-            height: 200px;
-            margin: 20px 0;
+            height: 220px;
+            margin: 18px 0;
             position: relative;
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 16px;
         }
-        
+
+        canvas { width: 100%; height: 100%; }
+
+        /* ── Results Section ──────────────────────────── */
         .results-section {
             display: none;
+            margin-top: 24px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(72,187,120,0.2);
+            border-radius: 16px;
+            padding: 28px;
+            animation: fadeInUp 0.5s ease;
         }
-        
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .results-section h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2em;
+            color: #48bb78;
+            margin-bottom: 20px;
+        }
+        .results-section h3 i { width: 22px; height: 22px; }
+
         .download-btn {
-            background: #48bb78;
+            background: linear-gradient(135deg, #48bb78, #38a169);
             color: white;
             border: none;
-            padding: 15px 30px;
-            font-size: 1.1em;
-            border-radius: 8px;
+            padding: 14px 32px;
+            font-size: 1em;
+            border-radius: 50px;
             cursor: pointer;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
             text-decoration: none;
-            margin: 10px;
+            font-family: inherit;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            font-weight: bold;
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(72,187,120,0.35);
         }
-        
-        .status-success {
-            background: #c6f6d5;
-            color: #22543d;
+
+        .download-btn i { width: 18px; height: 18px; }
+
+        /* ── Component Scores ──────────────────────────── */
+        .component-scores { margin-top: 24px; }
+
+        .component-scores h4 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #ccc;
+            font-size: 0.95em;
+            margin-bottom: 14px;
         }
-        
-        .status-error {
-            background: #fed7d7;
-            color: #742a2a;
+        .component-scores h4 i { width: 16px; height: 16px; color: #a78bfa; }
+
+        .score-bar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
         }
-        
+
+        .score-bar-label {
+            flex: 0 0 140px;
+            font-size: 0.82em;
+            color: rgba(255,255,255,0.6);
+            text-transform: capitalize;
+            font-weight: 500;
+        }
+
+        .score-bar-track {
+            flex: 1;
+            height: 8px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .score-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #a78bfa, #48bb78);
+            transition: width 0.6s ease;
+        }
+
+        .score-bar-value {
+            flex: 0 0 50px;
+            text-align: right;
+            font-size: 0.82em;
+            font-weight: 600;
+            color: #a78bfa;
+        }
+
+        /* ── Footer ────────────────────────────────────── */
         .footer {
             text-align: center;
-            color: white;
-            margin-top: 30px;
-            opacity: 0.8;
+            margin-top: 32px;
+            padding: 20px 24px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px;
+            backdrop-filter: blur(10px);
         }
-        
-        canvas {
-            width: 100%;
-            height: 100%;
+
+        .footer p {
+            color: rgba(255,255,255,0.45);
+            font-size: 0.85em;
+        }
+
+        .footer .footer-main {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            color: rgba(255,255,255,0.55);
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .footer .footer-main i { width: 16px; height: 16px; }
+
+        #status {
+            font-size: 0.8em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        #status i { width: 14px; height: 14px; }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.online { background: #48bb78; box-shadow: 0 0 8px rgba(72,187,120,0.5); }
+        .status-dot.offline { background: #e53e3e; }
+
+        /* ── Progress Message ──────────────────────────── */
+        #progressMessage {
+            text-align: center;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        #progressMessage i { width: 16px; height: 16px; }
+
+        /* ── Responsive ────────────────────────────────── */
+        @media (max-width: 700px) {
+            .song-selector, .parameters, .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .header h1 { font-size: 1.8em; }
+            body { padding: 14px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎵 Bollywood Mashup Generator</h1>
+            <h1>
+                <i data-lucide="music-4"></i>
+                Bollywood Mashup Generator
+            </h1>
             <p>Using Genetic Algorithm to create unique Bollywood melodies</p>
         </div>
         
         <div class="main-card">
             <div class="song-selector">
                 <div class="song-box">
-                    <label>🎤 Song 1</label>
-                    <select id="song1">
-                        <option value="">Loading songs...</option>
-                    </select>
+                    <label><i data-lucide="mic-2"></i> Song 1</label>
+                    <div class="song-row">
+                        <select id="song1">
+                            <option value="">Loading songs...</option>
+                        </select>
+                        <button class="preview-btn" onclick="previewSong(1)" id="previewBtn1" title="Preview 10s">
+                            <i data-lucide="play"></i>
+                        </button>
+                    </div>
+                    <div class="preview-status" id="previewStatus1"></div>
                 </div>
                 <div class="song-box">
-                    <label>🎸 Song 2</label>
-                    <select id="song2">
-                        <option value="">Loading songs...</option>
-                    </select>
+                    <label><i data-lucide="guitar"></i> Song 2</label>
+                    <div class="song-row">
+                        <select id="song2">
+                            <option value="">Loading songs...</option>
+                        </select>
+                        <button class="preview-btn" onclick="previewSong(2)" id="previewBtn2" title="Preview 10s">
+                            <i data-lucide="play"></i>
+                        </button>
+                    </div>
+                    <div class="preview-status" id="previewStatus2"></div>
                 </div>
             </div>
             
             <div class="parameters">
                 <div class="param-item">
-                    <label>🧬 Generations</label>
-                    <input type="range" id="generations" min="10" max="100" value="50" step="5">
-                    <span id="genValue">50</span>
+                    <label><i data-lucide="dna"></i> Generations</label>
+                    <div class="param-row">
+                        <input type="range" id="generations" min="10" max="100" value="50" step="5">
+                        <span class="param-value" id="genValue">50</span>
+                    </div>
                 </div>
                 <div class="param-item">
-                    <label>👥 Population Size</label>
-                    <input type="range" id="population" min="20" max="100" value="50" step="10">
-                    <span id="popValue">50</span>
+                    <label><i data-lucide="users"></i> Population Size</label>
+                    <div class="param-row">
+                        <input type="range" id="population" min="20" max="100" value="50" step="10">
+                        <span class="param-value" id="popValue">50</span>
+                    </div>
                 </div>
             </div>
             
             <button class="generate-btn" onclick="startGeneration()" id="generateBtn">
-                🎮 Generate Mashup
+                <i data-lucide="wand-sparkles"></i>
+                Generate Mashup
             </button>
             
             <div class="progress-section" id="progressSection">
-                <h3>Evolution in Progress</h3>
+                <h3><i data-lucide="loader"></i> Evolution in Progress</h3>
                 <div class="stats-grid" id="liveStats">
                     <div class="stat-box">
+                        <div class="stat-icon"><i data-lucide="hash"></i></div>
                         <div class="stat-value" id="currentGen">0</div>
                         <div class="stat-label">Generation</div>
                     </div>
                     <div class="stat-box">
+                        <div class="stat-icon"><i data-lucide="trophy"></i></div>
                         <div class="stat-value" id="bestFitness">0.000</div>
                         <div class="stat-label">Best Fitness</div>
                     </div>
                     <div class="stat-box">
+                        <div class="stat-icon"><i data-lucide="bar-chart-3"></i></div>
                         <div class="stat-value" id="avgFitness">0.000</div>
                         <div class="stat-label">Avg Fitness</div>
                     </div>
@@ -321,58 +612,70 @@
                     <div class="progress-fill" id="progressFill"></div>
                 </div>
                 
-                <div style="text-align: center; color: #666;" id="progressMessage">
-                    Initializing...
+                <div id="progressMessage">
+                    <i data-lucide="loader"></i> Initializing...
                 </div>
             </div>
             
             <div class="results-section" id="resultsSection">
-                <h3>✨ Mashup Generated!</h3>
+                <h3><i data-lucide="sparkles"></i> Mashup Generated!</h3>
                 
                 <div class="stats-grid">
                     <div class="stat-box">
+                        <div class="stat-icon"><i data-lucide="award"></i></div>
                         <div class="stat-value" id="finalFitness">0.000</div>
                         <div class="stat-label">Final Fitness</div>
                     </div>
                     <div class="stat-box">
+                        <div class="stat-icon"><i data-lucide="timer"></i></div>
                         <div class="stat-value" id="timeTaken">0s</div>
                         <div class="stat-label">Time Taken</div>
                     </div>
                     <div class="stat-box">
+                        <div class="stat-icon"><i data-lucide="layers"></i></div>
                         <div class="stat-value" id="components">0</div>
-                        <div class="stat-label">Active Components</div>
+                        <div class="stat-label">Components</div>
                     </div>
                 </div>
                 
-                <div style="text-align: center; margin: 20px 0;">
+                <div style="text-align: center; margin: 24px 0;">
                     <a href="#" class="download-btn" id="downloadBtn" onclick="downloadMashup()">
-                        ⬇️ Download MIDI
+                        <i data-lucide="download"></i> Download MIDI
                     </a>
                 </div>
                 
-                <div id="componentScores" style="margin: 20px 0;"></div>
+                <div class="component-scores" id="componentScores"></div>
             </div>
         </div>
         
         <div class="footer">
-            <p>Evolutionary Computing Project | Built with ❤️ for Bollywood Music</p>
-            <p id="status" style="font-size: 0.9em; margin-top: 10px;">Checking server...</p>
+            <div class="footer-main">
+                <i data-lucide="flask-conical"></i>
+                Evolutionary Computing Project
+                <span style="opacity:0.4">|</span>
+                <i data-lucide="heart"></i>
+                Built for Bollywood Music
+            </div>
+            <p id="status"><i data-lucide="wifi-off"></i> Checking server...</p>
         </div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
         // Global variables
         let currentRunId = null;
         let fitnessChart = null;
-        let checkInterval = null;
-        
+        let previewAudio = null;
+        let previewTimeout = null;
+        let activePreview = null;
+
         // Load songs on page load
         window.onload = function() {
             checkServerStatus();
             loadSongs();
             
-            // Setup range inputs
             document.getElementById('generations').addEventListener('input', function(e) {
                 document.getElementById('genValue').textContent = e.target.value;
             });
@@ -381,20 +684,21 @@
                 document.getElementById('popValue').textContent = e.target.value;
             });
         };
-        
+
         function checkServerStatus() {
             fetch('/api/status')
                 .then(res => res.json())
                 .then(data => {
                     document.getElementById('status').innerHTML = 
-                        `✅ Server online | ${data.songs_available} songs available`;
+                        `<span class="status-dot online"></span> Server online &mdash; ${data.songs_available} songs available`;
+                    lucide.createIcons();
                 })
                 .catch(err => {
                     document.getElementById('status').innerHTML = 
-                        '❌ Cannot connect to server';
+                        '<span class="status-dot offline"></span> Cannot connect to server';
                 });
         }
-        
+
         function loadSongs() {
             fetch('/api/songs')
                 .then(res => res.json())
@@ -410,20 +714,260 @@
                         song2Select.innerHTML += `<option value="${index}">${song}</option>`;
                     });
                     
-                    // Set different defaults
                     if (data.songs.length > 1) {
                         song2Select.value = "1";
                     }
                 });
         }
-        
+
+        // ── Song Preview (10 seconds, Insta-style) ──────────
+        function previewSong(num) {
+            const select = document.getElementById('song' + num);
+            const btn = document.getElementById('previewBtn' + num);
+            const statusEl = document.getElementById('previewStatus' + num);
+            const songIdx = select.value;
+
+            if (!songIdx && songIdx !== 0 && songIdx !== '0') {
+                statusEl.innerHTML = '<i data-lucide="alert-circle"></i> Select a song first';
+                lucide.createIcons();
+                return;
+            }
+
+            // If already previewing this song, stop it
+            if (activePreview === num) {
+                stopPreview(num);
+                return;
+            }
+
+            // Stop any other preview
+            if (activePreview !== null) {
+                stopPreview(activePreview);
+            }
+
+            statusEl.innerHTML = '<i data-lucide="loader"></i> Loading preview...';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            // Fetch the MIDI preview as a blob and play with Web Audio
+            fetch(`/api/preview/${songIdx}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Preview not available');
+                    return res.arrayBuffer();
+                })
+                .then(buffer => {
+                    // Use the Web Audio API to synthesize MIDI
+                    playMidiPreview(buffer, num);
+                })
+                .catch(err => {
+                    statusEl.innerHTML = '<i data-lucide="alert-circle"></i> Preview unavailable';
+                    btn.disabled = false;
+                    lucide.createIcons();
+                });
+        }
+
+        function playMidiPreview(midiBuffer, num) {
+            const btn = document.getElementById('previewBtn' + num);
+            const statusEl = document.getElementById('previewStatus' + num);
+
+            // Simple MIDI-to-audio synthesis using Web Audio API
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Parse basic MIDI from the buffer
+            const notes = parseMidiNotes(new Uint8Array(midiBuffer));
+            
+            if (notes.length === 0) {
+                statusEl.innerHTML = '<i data-lucide="alert-circle"></i> No playable notes';
+                btn.disabled = false;
+                lucide.createIcons();
+                return;
+            }
+
+            activePreview = num;
+            btn.innerHTML = '<i data-lucide="square"></i>';
+            btn.disabled = false;
+            statusEl.innerHTML = '<i data-lucide="volume-2"></i> Playing preview...';
+            lucide.createIcons();
+
+            // Schedule all notes
+            const oscillators = [];
+            const maxTime = 10; // 10 second limit
+
+            notes.forEach(note => {
+                if (note.start > maxTime) return;
+                const end = Math.min(note.end, maxTime);
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                // Convert MIDI pitch to frequency
+                osc.frequency.value = 440 * Math.pow(2, (note.pitch - 69) / 12);
+                osc.type = 'triangle';
+
+                // Envelope
+                const vol = (note.velocity || 90) / 127 * 0.15;
+                gain.gain.setValueAtTime(0, audioCtx.currentTime + note.start);
+                gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + note.start + 0.02);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime + end - 0.02);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + end);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + note.start);
+                osc.stop(audioCtx.currentTime + end);
+                oscillators.push({ osc, gain });
+            });
+
+            // Auto-stop after 10 seconds
+            previewTimeout = setTimeout(() => {
+                stopPreview(num);
+            }, maxTime * 1000);
+
+            // Store context for stopping
+            window._previewCtx = audioCtx;
+            window._previewOscillators = oscillators;
+        }
+
+        function parseMidiNotes(bytes) {
+            // Simple MIDI parser that extracts Note On / Note Off events
+            const notes = [];
+            let pos = 0;
+
+            // Check MIDI header
+            if (bytes[0] !== 0x4D || bytes[1] !== 0x54) return notes;
+
+            // Read header
+            const headerLen = (bytes[4] << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7];
+            const format = (bytes[8] << 8) | bytes[9];
+            const numTracks = (bytes[10] << 8) | bytes[11];
+            let ticksPerBeat = (bytes[12] << 8) | bytes[13];
+            if (ticksPerBeat === 0) ticksPerBeat = 480;
+
+            pos = 8 + headerLen;
+
+            let tempo = 500000; // default 120 BPM
+
+            for (let t = 0; t < numTracks && pos < bytes.length; t++) {
+                // Track header
+                if (bytes[pos] !== 0x4D || bytes[pos+1] !== 0x54) break;
+                const trackLen = (bytes[pos+4] << 24) | (bytes[pos+5] << 16) | (bytes[pos+6] << 8) | bytes[pos+7];
+                pos += 8;
+                const trackEnd = pos + trackLen;
+
+                let tick = 0;
+                let lastStatus = 0;
+                const activeNotes = {};
+
+                while (pos < trackEnd && pos < bytes.length) {
+                    // Read delta time (variable length)
+                    let delta = 0;
+                    let b;
+                    do {
+                        b = bytes[pos++];
+                        delta = (delta << 7) | (b & 0x7F);
+                    } while (b & 0x80 && pos < trackEnd);
+
+                    tick += delta;
+                    const timeSec = (tick / ticksPerBeat) * (tempo / 1000000);
+
+                    // Read event
+                    let status = bytes[pos];
+                    if (status & 0x80) {
+                        lastStatus = status;
+                        pos++;
+                    } else {
+                        status = lastStatus;
+                    }
+
+                    const type = status & 0xF0;
+
+                    if (type === 0x90) { // Note On
+                        const pitch = bytes[pos++];
+                        const vel = bytes[pos++];
+                        if (vel > 0) {
+                            activeNotes[pitch] = { pitch, start: timeSec, velocity: vel };
+                        } else {
+                            // Note Off (velocity 0)
+                            if (activeNotes[pitch]) {
+                                notes.push({ ...activeNotes[pitch], end: timeSec });
+                                delete activeNotes[pitch];
+                            }
+                        }
+                    } else if (type === 0x80) { // Note Off
+                        const pitch = bytes[pos++];
+                        pos++; // velocity
+                        if (activeNotes[pitch]) {
+                            notes.push({ ...activeNotes[pitch], end: timeSec });
+                            delete activeNotes[pitch];
+                        }
+                    } else if (type === 0xFF) { // Meta event
+                        const metaType = bytes[pos++];
+                        let len = 0;
+                        do {
+                            b = bytes[pos++];
+                            len = (len << 7) | (b & 0x7F);
+                        } while (b & 0x80 && pos < trackEnd);
+                        if (metaType === 0x51 && len === 3) {
+                            tempo = (bytes[pos] << 16) | (bytes[pos+1] << 8) | bytes[pos+2];
+                        }
+                        pos += len;
+                    } else if (type === 0xC0 || type === 0xD0) {
+                        pos++; // 1 data byte
+                    } else if (type === 0xF0 || type === 0xF7) {
+                        // SysEx
+                        let len = 0;
+                        do {
+                            b = bytes[pos++];
+                            len = (len << 7) | (b & 0x7F);
+                        } while (b & 0x80 && pos < trackEnd);
+                        pos += len;
+                    } else {
+                        pos += 2; // default 2 data bytes
+                    }
+                }
+
+                // Close any remaining notes
+                for (const pitch in activeNotes) {
+                    const timeSec = (tick / ticksPerBeat) * (tempo / 1000000);
+                    notes.push({ ...activeNotes[pitch], end: timeSec });
+                }
+            }
+
+            return notes;
+        }
+
+        function stopPreview(num) {
+            const btn = document.getElementById('previewBtn' + num);
+            const statusEl = document.getElementById('previewStatus' + num);
+
+            if (previewTimeout) {
+                clearTimeout(previewTimeout);
+                previewTimeout = null;
+            }
+
+            if (window._previewCtx) {
+                try { window._previewCtx.close(); } catch(e) {}
+                window._previewCtx = null;
+            }
+
+            activePreview = null;
+            if (btn) {
+                btn.innerHTML = '<i data-lucide="play"></i>';
+                btn.disabled = false;
+            }
+            if (statusEl) {
+                statusEl.innerHTML = '';
+            }
+            lucide.createIcons();
+        }
+
+        // ── GA Generation ───────────────────────────────
         function startGeneration() {
             const song1 = document.getElementById('song1').value;
             const song2 = document.getElementById('song2').value;
             const generations = document.getElementById('generations').value;
             const population = document.getElementById('population').value;
             
-            if (!song1 || !song2) {
+            if (!song1 && song1 !== '0' || !song2 && song2 !== '0') {
                 alert('Please select both songs');
                 return;
             }
@@ -452,23 +996,42 @@
                     datasets: [{
                         label: 'Best Fitness',
                         data: [],
-                        borderColor: '#667eea',
-                        tension: 0.4
+                        borderColor: '#a78bfa',
+                        backgroundColor: 'rgba(167,139,250,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0
                     }, {
                         label: 'Avg Fitness',
                         data: [],
                         borderColor: '#48bb78',
-                        tension: 0.4
+                        backgroundColor: 'rgba(72,187,120,0.05)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     animation: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: 'rgba(255,255,255,0.6)', font: { family: 'Inter', size: 11 } }
+                        }
+                    },
                     scales: {
                         y: {
                             beginAtZero: true,
-                            max: 1
+                            max: 1,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: 'rgba(255,255,255,0.4)', font: { family: 'Inter', size: 10 } }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { color: 'rgba(255,255,255,0.3)', font: { family: 'Inter', size: 10 } }
                         }
                     }
                 }
@@ -477,9 +1040,7 @@
             // Start generation
             fetch('/api/generate', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     song1: parseInt(song1),
                     song2: parseInt(song2),
@@ -504,26 +1065,44 @@
                     document.getElementById('progressFill').style.width = '100%';
                     document.getElementById('currentGen').textContent = data.generations;
                     document.getElementById('bestFitness').textContent = data.best_fitness.toFixed(3);
+
+                    // FIX: update avg fitness from the last value in avg_fitness_history
+                    if (data.avg_fitness_history && data.avg_fitness_history.length > 0) {
+                        document.getElementById('avgFitness').textContent =
+                            data.avg_fitness_history[data.avg_fitness_history.length - 1].toFixed(3);
+                    }
+
                     document.getElementById('finalFitness').textContent = data.best_fitness.toFixed(3);
                     document.getElementById('timeTaken').textContent = data.time_taken.toFixed(1) + 's';
                     
-                    // Show component scores
-                    let componentHtml = '<h4>Fitness Components:</h4><ul style="list-style: none;">';
+                    // Show component scores as horizontal bars
+                    let componentHtml = '<h4><i data-lucide="sliders-horizontal"></i> Fitness Components</h4>';
                     for (let [key, value] of Object.entries(data.fitness_components)) {
-                        componentHtml += `<li>${key}: ${(value * 100).toFixed(1)}%</li>`;
+                        const pct = (value * 100).toFixed(1);
+                        const label = key.replace(/_/g, ' ');
+                        componentHtml += `
+                            <div class="score-bar-item">
+                                <span class="score-bar-label">${label}</span>
+                                <div class="score-bar-track">
+                                    <div class="score-bar-fill" style="width: ${pct}%"></div>
+                                </div>
+                                <span class="score-bar-value">${pct}%</span>
+                            </div>`;
                     }
-                    componentHtml += '</ul>';
                     document.getElementById('componentScores').innerHTML = componentHtml;
                     
                     document.getElementById('components').textContent = Object.keys(data.fitness_components).length;
                     
                     // Show results
                     document.getElementById('resultsSection').style.display = 'block';
-                    document.getElementById('progressMessage').textContent = 
-                        `✅ Complete! Best fitness: ${data.best_fitness.toFixed(3)}`;
+                    document.getElementById('progressMessage').innerHTML = 
+                        `<i data-lucide="check-circle"></i> Complete! Best fitness: ${data.best_fitness.toFixed(3)}`;
                     
                     // Set download link
                     document.getElementById('downloadBtn').href = `/api/download/${data.run_id}`;
+
+                    // Re-init icons for new elements
+                    lucide.createIcons();
                 } else {
                     alert('Error: ' + data.error);
                 }
