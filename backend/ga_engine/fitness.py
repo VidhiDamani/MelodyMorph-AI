@@ -13,12 +13,12 @@ class BollywoodFitness:
     def __init__(self, source_features):
         self.source_features = source_features
         self.weights = {
-            'key_compatibility': 0.25,     # 25% - Must be in compatible keys
-            'rhythm_alignment': 0.20,       # 20% - Beats must align
-            'note_density': 0.15,            # 15% - Similar note density
-            'pitch_range': 0.15,             # 15% - Similar pitch range
-            'melodic_flow': 0.15,            # 15% - Smooth melodies
-            'dissonance': 0.10               # 10% - Avoid clashing notes
+            'key_compatibility': 0.35,     # 35% - Increased for better harmony
+            'rhythm_alignment': 0.25,       # 25% - Increased for better groove
+            'note_density': 0.10,            # 10%
+            'pitch_range': 0.10,             # 10%
+            'melodic_flow': 0.10,            # 10%
+            'dissonance': 0.10               # 10%
         }
         
     def evaluate(self, chromosome):
@@ -119,14 +119,18 @@ class BollywoodFitness:
             notes2 = set(raga2.get('notes', [0, 2, 4, 5, 7, 9, 11]))
             
             # Calculate overlap
-            overlap = len(notes1 & notes2) / max(len(notes1), len(notes2))
+            intersection = len(notes1 & notes2)
+            original_overlap = intersection / max(len(notes1), len(notes2))
+            
+            # STEEPER GRADIENT: Square it to reward high overlap more than mediocre
+            overlap = original_overlap ** 2
             
             # Bonus if they share characteristic notes
             vadi1 = raga1.get('vadi')
             vadi2 = raga2.get('vadi')
             
             if vadi1 and vadi2 and vadi1 == vadi2:
-                overlap = min(1.0, overlap + 0.2)
+                overlap = min(1.0, overlap + 0.1)
             
             return overlap
             
@@ -292,10 +296,14 @@ class BollywoodFitness:
                         interval = abs(note1['pitch'] - note2['pitch']) % 12
                         
                         # Dissonant intervals (in semitones)
-                        dissonant = [1, 2, 6, 10, 11]  # minor 2nd, major 2nd, tritone, etc.
+                        dissonant = [1, 2, 6, 11]  # minor 2nd, major 2nd, tritone, major 7th.
                         
                         if interval in dissonant:
-                            dissonance_penalty += 1
+                            # Stricter penalty for half-steps (most dissonant)
+                            if interval == 1 or interval == 11:
+                                dissonance_penalty += 3
+                            else:
+                                dissonance_penalty += 1
             
             # Normalize penalty
             total_overlaps = len(all_notes) * 5  # approximate

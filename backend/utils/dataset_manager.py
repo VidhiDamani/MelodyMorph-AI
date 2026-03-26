@@ -510,11 +510,8 @@ class DatasetManager:
         
         # VERTICAL MASHUP: All tracks play simultaneously
         # Drums from song1, Bass from song2, Melody from song1
-        source_tracks = [
-            [note.copy() for note in tracks1[0]] if len(tracks1) > 0 and tracks1[0] else [],  # Drums from song1
-            [note.copy() for note in tracks2[1]] if len(tracks2) > 1 and tracks2[1] else [],  # Bass from song2  
-            [note.copy() for note in tracks1[2]] if len(tracks1) > 2 and tracks1[2] else []   # Melody from song1
-        ]
+        # PROVIDE ALL TRACKS: GA will pick and evolve from these
+        source_tracks = [tracks1, tracks2]
         
         # Extract features for fitness functions
         source_features = {

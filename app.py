@@ -1,5 +1,5 @@
 """
-Bollywood Mashup Generator using Genetic Algorithm
+MelodyMorph AI - Evolutionary Music Mashup
 Main application file - FIXED VERSION
 """
 
@@ -39,7 +39,7 @@ def status():
     """API endpoint to check if server is running"""
     return jsonify({
         'status': 'online',
-        'message': 'Bollywood Mashup GA is ready!',
+        'message': 'MelodyMorph AI is ready!',
         'version': '1.0.0',
         'songs_available': dataset_manager.get_song_count()
     })
@@ -194,7 +194,7 @@ def download_midi(run_id):
         midi_path = os.path.join('data', 'generated', midi_file)
         if os.path.exists(midi_path):
             return send_file(midi_path, as_attachment=True, 
-                           download_name=f"bollywood_mashup_{run_id}.mid")
+                           download_name=f"melodymorph_{run_id}.mid")
     
     return jsonify({'error': 'File not found'}), 404
 
@@ -215,7 +215,7 @@ def get_run_info(run_id):
     return jsonify({'error': 'Run not found'}), 404
 
 if __name__ == '__main__':
-    print("\n🎵 Starting Bollywood Mashup Generator...")
+    print("\n🎵 Starting MelodyMorph AI...")
     print(f"📀 {dataset_manager.get_song_count()} songs loaded!")
     print("📍 Open http://127.0.0.1:5000 in your browser")
     print("=" * 50)

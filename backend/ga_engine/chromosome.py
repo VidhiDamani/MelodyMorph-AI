@@ -35,6 +35,15 @@ class BollywoodChromosome:
         self.id = random.randint(1000, 9999)  # Random ID for tracking
         self.creation_generation = 0
         
+    def copy(self):
+        """Create a deep copy of this chromosome"""
+        new_c = BollywoodChromosome([track[:] for track in self.tracks])
+        new_c.control_genes = {k: v.copy() for k, v in self.control_genes.items()}
+        new_c.fitness = self.fitness
+        new_c.fitness_components = self.fitness_components.copy()
+        new_c.creation_generation = self.creation_generation
+        return new_c
+    
     def to_dict(self):
         """Convert to dictionary for JSON serialization"""
         return {
@@ -72,8 +81,8 @@ class BollywoodChromosome:
                 instrument_idx = self.control_genes['instrument_choices'][0] % len(instrument_programs['drums'])
                 program = instrument_programs['drums'][instrument_idx]
                 
-                # For drums, use channel 9 (drums)
-                drum_instrument = pretty_midi.Instrument(program=program, is_drum=True, name='Drums')
+                # Use normal instrument for track 0 (forcing it to drums causes silence for melody)
+                drum_instrument = pretty_midi.Instrument(program=program, name='Rhythm')
                 
                 for note in self.tracks[0]:
                     # Apply tempo scaling only (drums don't pitch shift)
@@ -81,9 +90,13 @@ class BollywoodChromosome:
                     start = note['start'] * tempo_scale
                     end = note['end'] * tempo_scale
                     
+                    # Ensure valid note duration
+                    if end <= start:
+                        end = start + 0.1
+                    
                     # Apply volume
                     velocity = int(note.get('velocity', 100) * self.control_genes['track_volumes'][0] / 100)
-                    velocity = max(40, min(120, velocity))
+                    velocity = max(60, min(120, velocity)) # Increased minimum volume
                     
                     midi_note = pretty_midi.Note(
                         velocity=velocity,
@@ -119,9 +132,13 @@ class BollywoodChromosome:
                     start = note['start'] * tempo_scale
                     end = note['end'] * tempo_scale
                     
+                    # Ensure valid note duration
+                    if end <= start:
+                        end = start + 0.1
+                    
                     # Apply volume
                     velocity = int(note.get('velocity', 80) * self.control_genes['track_volumes'][1] / 100)
-                    velocity = max(40, min(120, velocity))
+                    velocity = max(50, min(120, velocity))
                     
                     midi_note = pretty_midi.Note(
                         velocity=velocity,
@@ -156,9 +173,13 @@ class BollywoodChromosome:
                     start = note['start'] * tempo_scale
                     end = note['end'] * tempo_scale
                     
+                    # Ensure valid note duration
+                    if end <= start:
+                        end = start + 0.1
+                    
                     # Apply volume
                     velocity = int(note.get('velocity', 90) * self.control_genes['track_volumes'][2] / 100)
-                    velocity = max(40, min(120, velocity))
+                    velocity = max(50, min(120, velocity))
                     
                     midi_note = pretty_midi.Note(
                         velocity=velocity,
@@ -173,8 +194,13 @@ class BollywoodChromosome:
             
             # Save MIDI file
             if midi.instruments:
+                total_notes = sum(len(inst.notes) for inst in midi.instruments)
+                if total_notes == 0:
+                    print("⚠️ WARNING: MIDI object has instruments but ZERO notes!")
+                    return False
+                
                 midi.write(output_path)
-                print(f"✅ Created vertical mashup with {len(midi.instruments)} tracks playing together")
+                print(f"✅ Created vertical mashup with {len(midi.instruments)} tracks and {total_notes} notes")
                 return True
             else:
                 print("⚠️ No instruments with notes to save")
@@ -185,34 +211,32 @@ class BollywoodChromosome:
             return False
     
     @staticmethod
-    def create_random(source_tracks, length_bars=4):
+    def create_random(source_tracks):
         """
-        Create random chromosome from source tracks with overlapping tracks
-        All tracks will play simultaneously in final output
+        Create random chromosome by picking 3 tracks from the available pool
         """
         chromosome = BollywoodChromosome()
         chromosome.tracks = []
         
-        # Track 0: Drums from source 0 (full length)
-        if len(source_tracks) > 0 and source_tracks[0]:
-            drums = [note.copy() for note in source_tracks[0]]  # Deep copy
-            chromosome.tracks.append(drums)
-        else:
-            chromosome.tracks.append([])
+        # Flatten pool: ensure it's a list of tracks (where each track is a list of notes)
+        pool = []
+        for item in source_tracks:
+            # Check if this is a list of tracks or a single track
+            if len(item) > 0 and isinstance(item[0], list):
+                # It's a list of tracks (like tracks1 from DatasetManager)
+                for track in item:
+                    if track: pool.append(track)
+            elif item:
+                # It's a single track
+                pool.append(item)
         
-        # Track 1: Bass from source 1 (full length, plays simultaneously)
-        if len(source_tracks) > 1 and source_tracks[1]:
-            bass = [note.copy() for note in source_tracks[1]]  # Deep copy
-            chromosome.tracks.append(bass)
-        else:
-            chromosome.tracks.append([])
-        
-        # Track 2: Melody from source 2 (full length, plays simultaneously)
-        if len(source_tracks) > 2 and source_tracks[2]:
-            melody = [note.copy() for note in source_tracks[2]]  # Deep copy
-            chromosome.tracks.append(melody)
-        else:
-            chromosome.tracks.append([])
+        # Pick 3 random tracks (or as many as available)
+        for i in range(3):
+            if pool:
+                track = random.choice(pool)
+                chromosome.tracks.append([n.copy() for n in track])
+            else:
+                chromosome.tracks.append([])
         
         # Baseline control genes so the GA evaluates to the base song fit and evolves from there
         chromosome.control_genes['pitch_shifts'] = [0, 0, 0]

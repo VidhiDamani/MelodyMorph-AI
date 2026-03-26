@@ -30,6 +30,14 @@ class BollywoodGA:
         self.mutation_rate = mutation_rate
         self.crossover_rate = crossover_rate
         
+        # Pool of all available source tracks for mutations
+        self.track_pool = []
+        for track_list in source_tracks:
+            if isinstance(track_list[0], list): # If it's a list of tracks (new format)
+                for t in track_list: self.track_pool.append(t)
+            else:
+                self.track_pool.append(track_list)
+        
         self.fitness_calculator = BollywoodFitness(source_features)
         self.population = []
         self.generation = 0
@@ -81,39 +89,45 @@ class BollywoodGA:
     
     def _crossover(self, parent1, parent2):
         """
-        Create children by mixing parents
+        Create children by mixing parents (SECTIONAL CROSSOVER)
+        Swaps segments of music based on a random time point
         """
         if random.random() > self.crossover_rate:
-            return parent1, parent2
+            return parent1.copy(), parent2.copy()
         
         child1_tracks = []
         child2_tracks = []
         
-        # Crossover point (track level)
-        crossover_point = random.randint(0, len(parent1.tracks))
+        # Determine a random time split point (4-16 seconds)
+        split_time = random.uniform(4.0, 12.0)
         
         for i in range(len(parent1.tracks)):
-            if i < crossover_point:
-                child1_tracks.append(parent1.tracks[i])
-                child2_tracks.append(parent2.tracks[i])
-            else:
-                child1_tracks.append(parent2.tracks[i])
-                child2_tracks.append(parent1.tracks[i])
+            p1_track = parent1.tracks[i]
+            p2_track = parent2.tracks[i]
+            
+            # Divide notes by time
+            p1_early = [n.copy() for n in p1_track if n['start'] < split_time]
+            p1_late = [n.copy() for n in p1_track if n['start'] >= split_time]
+            p2_early = [n.copy() for n in p2_track if n['start'] < split_time]
+            p2_late = [n.copy() for n in p2_track if n['start'] >= split_time]
+            
+            # Mix segments
+            child1_tracks.append(p1_early + p2_late)
+            child2_tracks.append(p2_early + p1_late)
         
         # Create children
         child1 = BollywoodChromosome(child1_tracks)
         child2 = BollywoodChromosome(child2_tracks)
         
-        # Inherit control genes
+        # Element-wise crossover for genes
         for key in parent1.control_genes:
             child1.control_genes[key] = parent1.control_genes[key].copy()
             child2.control_genes[key] = parent2.control_genes[key].copy()
             
-            # Element-wise crossover for genes
-            for i in range(len(parent1.control_genes[key])):
+            for j in range(len(child1.control_genes[key])):
                 if random.random() < 0.5:
-                    child1.control_genes[key][i], child2.control_genes[key][i] = \
-                        child2.control_genes[key][i], child1.control_genes[key][i]
+                    child1.control_genes[key][j], child2.control_genes[key][j] = \
+                        child2.control_genes[key][j], child1.control_genes[key][j]
         
         return child1, child2
     
@@ -121,7 +135,7 @@ class BollywoodGA:
         """
         Apply random mutations
         """
-        mutated = BollywoodChromosome([track[:] for track in chromosome.tracks])
+        mutated = BollywoodChromosome([[n.copy() for n in track] for track in chromosome.tracks])
         mutated.control_genes = {k: v.copy() for k, v in chromosome.control_genes.items()}
         
         # Mutate pitch shifts
@@ -143,6 +157,12 @@ class BollywoodGA:
                     mutated.control_genes['tempo_scales'][i]))
                 mutated.control_genes['tempo_scales'][i] = round(
                     mutated.control_genes['tempo_scales'][i], 2)
+        
+        # Swap whole track with one from pool (rare)
+        if random.random() < self.mutation_rate:
+            track_idx = random.randint(0, len(mutated.tracks) - 1)
+            if self.track_pool:
+                mutated.tracks[track_idx] = [n.copy() for n in random.choice(self.track_pool)]
         
         # Swap notes between tracks (rare)
         if random.random() < self.mutation_rate / 2:
@@ -169,10 +189,16 @@ class BollywoodGA:
         print(f"\n🎮 Starting GA with {generations} generations...")
         print("=" * 50)
         
+        stalled_generations = 0
+        last_best_fitness = -1.0
+        
         for gen in range(generations):
             self.generation = gen
             
-            # Selection
+            # 1. ELITISM: Keep best individuals UNCHANGED
+            elites = [c.copy() for c in self.population[:self.elite_size]]
+            
+            # 2. SELECTION: Choose parents for the rest of population
             selected = self._selection()
             
             # Create new population through crossover
@@ -195,7 +221,8 @@ class BollywoodGA:
                     BollywoodChromosome.create_random(self.source_tracks)
                 )
             
-            self.population = mutated_population[:self.population_size]
+            # 6. COMBINE: Elites + Mutated Children
+            self.population = (elites + mutated_population)[:self.population_size]
             
             # Evaluate
             self._evaluate_population()
@@ -206,10 +233,28 @@ class BollywoodGA:
                 np.mean([c.fitness for c in self.population])
             )
             
+            # Check for stall
+            if self.population[0].fitness <= last_best_fitness + 0.0001:
+                stalled_generations += 1
+            else:
+                stalled_generations = 0
+                last_best_fitness = self.population[0].fitness
+            
+            # Mutation Boost if stalled
+            original_mutation_rate = self.mutation_rate
+            if stalled_generations >= 10:
+                self.mutation_rate *= 2.0
+                if gen % 5 == 0:
+                    print(f"🔥 STALL DETECTED! Boosting mutation to {self.mutation_rate:.2f}")
+            
             # Progress update every 5 generations
             if gen % 5 == 0 or gen == generations - 1:
                 print(f"Gen {gen:3d} | Best: {self.population[0].fitness:.3f} | "
-                      f"Avg: {self.avg_fitness_history[-1]:.3f}")
+                      f"Avg: {self.avg_fitness_history[-1]:.3f} | "
+                      f"Stall: {stalled_generations}")
+            
+            # Restore mutation rate if it was boosted
+            self.mutation_rate = original_mutation_rate
         
         self.end_time = time.time()
         
