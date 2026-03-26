@@ -13,7 +13,6 @@ Discover-MIDI-Dataset/
 data/real_midi_files/
 data/midi_files/
 data/processed/
-data/feature_cache.pkl
 *.mid
 *.midi
 *.tar.gz
