@@ -21,7 +21,7 @@
         
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #222222 100%);
             min-height: 100vh;
             padding: 24px;
             color: #e0e0e0;
@@ -43,7 +43,7 @@
         .header h1 {
             font-size: 2.6em;
             font-weight: 800;
-            background: linear-gradient(135deg, #f9d423, #ff4e50);
+            background: linear-gradient(135deg, #ffffff, #aaaaaa);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -54,7 +54,7 @@
             gap: 12px;
         }
 
-        .header h1 i { -webkit-text-fill-color: initial; color: #f9d423; }
+        .header h1 i { -webkit-text-fill-color: initial; color: #ffffff; }
 
         .header p {
             font-size: 1.05em;
@@ -86,7 +86,7 @@
             padding-bottom: 12px;
         }
 
-        .section-title i { color: #f9d423; width: 20px; height: 20px; }
+        .section-title i { color: #ffffff; width: 20px; height: 20px; }
 
         /* ── Song Selector ─────────────────────────────── */
         .song-selector {
@@ -105,7 +105,7 @@
         }
 
         .song-box:hover {
-            border-color: rgba(249,212,35,0.4);
+            border-color: rgba(255,255,255,0.4);
             background: rgba(255,255,255,0.07);
             transform: translateY(-2px);
         }
@@ -120,7 +120,7 @@
             font-size: 0.95em;
         }
 
-        .song-box label i { width: 18px; height: 18px; color: #f9d423; }
+        .song-box label i { width: 18px; height: 18px; color: #ffffff; }
 
         .song-row {
             display: flex;
@@ -141,11 +141,11 @@
             transition: border-color 0.2s;
         }
 
-        .song-box select:focus { border-color: #f9d423; outline: none; }
-        .song-box select option { background: #1a1a2e; color: #e0e0e0; }
+        .song-box select:focus { border-color: #ffffff; outline: none; }
+        .song-box select option { background: #111111; color: #e0e0e0; }
 
         .preview-btn {
-            background: linear-gradient(135deg, #f9d423, #ff4e50);
+            background: linear-gradient(135deg, #ffffff, #cccccc);
             border: none;
             width: 40px;
             height: 40px;
@@ -156,18 +156,18 @@
             justify-content: center;
             transition: transform 0.2s, box-shadow 0.2s;
             flex-shrink: 0;
-            color: #fff;
+            color: #000;
         }
         .preview-btn:hover {
             transform: scale(1.12);
-            box-shadow: 0 4px 16px rgba(249,212,35,0.4);
+            box-shadow: 0 4px 16px rgba(255,255,255,0.4);
         }
         .preview-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
         .preview-btn i { width: 18px; height: 18px; }
 
         .preview-status {
             font-size: 0.75em;
-            color: rgba(249,212,35,0.8);
+            color: rgba(255,255,255,0.8);
             margin-top: 8px;
             min-height: 18px;
             display: flex;
@@ -201,7 +201,7 @@
             font-size: 0.9em;
         }
 
-        .param-item label i { width: 16px; height: 16px; color: #a78bfa; }
+        .param-item label i { width: 16px; height: 16px; color: #cccccc; }
 
         .param-row {
             display: flex;
@@ -211,13 +211,13 @@
 
         .param-item input[type=range] {
             flex: 1;
-            accent-color: #a78bfa;
+            accent-color: #ffffff;
             height: 6px;
         }
 
         .param-value {
-            background: rgba(167,139,250,0.15);
-            color: #a78bfa;
+            background: rgba(255,255,255,0.15);
+            color: #ffffff;
             font-weight: 700;
             font-size: 0.95em;
             padding: 4px 10px;
@@ -228,8 +228,8 @@
 
         /* ── Generate Button ───────────────────────────── */
         .generate-btn {
-            background: linear-gradient(135deg, #f9d423 0%, #ff4e50 100%);
-            color: #1a1a2e;
+            background: linear-gradient(135deg, #ffffff 0%, #dddddd 100%);
+            color: #000000;
             border: none;
             padding: 16px 36px;
             font-size: 1.1em;
@@ -248,7 +248,7 @@
 
         .generate-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 28px rgba(249,212,35,0.35);
+            box-shadow: 0 8px 28px rgba(255,255,255,0.35);
         }
 
         .generate-btn:disabled {
@@ -278,7 +278,7 @@
             font-size: 1.1em;
             margin-bottom: 16px;
         }
-        .progress-section h3 i { color: #a78bfa; width: 20px; height: 20px; }
+        .progress-section h3 i { color: #ffffff; width: 20px; height: 20px; }
 
         .progress-bar {
             width: 100%;
@@ -291,7 +291,7 @@
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #a78bfa, #f9d423);
+            background: linear-gradient(90deg, #dddddd, #ffffff);
             width: 0%;
             transition: width 0.3s;
             border-radius: 8px;
@@ -314,19 +314,19 @@
             transition: border-color 0.3s;
         }
 
-        .stat-box:hover { border-color: rgba(167,139,250,0.3); }
+        .stat-box:hover { border-color: rgba(255,255,255,0.3); }
 
         .stat-icon {
             margin-bottom: 8px;
             display: flex;
             justify-content: center;
         }
-        .stat-icon i { width: 20px; height: 20px; color: #a78bfa; }
+        .stat-icon i { width: 20px; height: 20px; color: #cccccc; }
 
         .stat-value {
             font-size: 1.7em;
             font-weight: 700;
-            background: linear-gradient(135deg, #a78bfa, #f9d423);
+            background: linear-gradient(135deg, #ffffff, #aaaaaa);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -359,7 +359,7 @@
             display: none;
             margin-top: 24px;
             background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(72,187,120,0.2);
+            border: 1px solid rgba(255,255,255,0.2);
             border-radius: 16px;
             padding: 28px;
             animation: fadeInUp 0.5s ease;
@@ -375,14 +375,14 @@
             align-items: center;
             gap: 10px;
             font-size: 1.2em;
-            color: #48bb78;
+            color: #ffffff;
             margin-bottom: 20px;
         }
         .results-section h3 i { width: 22px; height: 22px; }
 
         .download-btn {
-            background: linear-gradient(135deg, #48bb78, #38a169);
-            color: white;
+            background: linear-gradient(135deg, #ffffff, #e0e0e0);
+            color: black;
             border: none;
             padding: 14px 32px;
             font-size: 1em;
@@ -399,7 +399,7 @@
 
         .download-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(72,187,120,0.35);
+            box-shadow: 0 6px 20px rgba(255,255,255,0.35);
         }
 
         .download-btn i { width: 18px; height: 18px; }
@@ -415,7 +415,7 @@
             font-size: 0.95em;
             margin-bottom: 14px;
         }
-        .component-scores h4 i { width: 16px; height: 16px; color: #a78bfa; }
+        .component-scores h4 i { width: 16px; height: 16px; color: #ffffff; }
 
         .score-bar-item {
             display: flex;
@@ -443,7 +443,7 @@
         .score-bar-fill {
             height: 100%;
             border-radius: 4px;
-            background: linear-gradient(90deg, #a78bfa, #48bb78);
+            background: linear-gradient(90deg, #888888, #ffffff);
             transition: width 0.6s ease;
         }
 
@@ -452,7 +452,7 @@
             text-align: right;
             font-size: 0.82em;
             font-weight: 600;
-            color: #a78bfa;
+            color: #ffffff;
         }
 
         /* ── Footer ────────────────────────────────────── */
@@ -499,8 +499,8 @@
             border-radius: 50%;
             display: inline-block;
         }
-        .status-dot.online { background: #48bb78; box-shadow: 0 0 8px rgba(72,187,120,0.5); }
-        .status-dot.offline { background: #e53e3e; }
+        .status-dot.online { background: #ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.5); }
+        .status-dot.offline { background: #aaaaaa; }
 
         /* ── Progress Message ──────────────────────────── */
         #progressMessage {
@@ -649,13 +649,6 @@
         </div>
         
         <div class="footer">
-            <div class="footer-main">
-                <i data-lucide="flask-conical"></i>
-                Evolutionary Computing Project
-                <span style="opacity:0.4">|</span>
-                <i data-lucide="heart"></i>
-                Built for Bollywood Music
-            </div>
             <p id="status"><i data-lucide="wifi-off"></i> Checking server...</p>
         </div>
     </div>
@@ -748,15 +741,15 @@
             btn.disabled = true;
             lucide.createIcons();
 
-            // Fetch the MIDI preview as a blob and play with Web Audio
+            // Fetch the JSON note preview and play with Web Audio
             fetch(`/api/preview/${songIdx}`)
                 .then(res => {
                     if (!res.ok) throw new Error('Preview not available');
-                    return res.arrayBuffer();
+                    return res.json();
                 })
-                .then(buffer => {
-                    // Use the Web Audio API to synthesize MIDI
-                    playMidiPreview(buffer, num);
+                .then(data => {
+                    // Use the Web Audio API to synthesize JSON notes
+                    playNotesPreview(data.notes, num);
                 })
                 .catch(err => {
                     statusEl.innerHTML = '<i data-lucide="alert-circle"></i> Preview unavailable';
@@ -765,17 +758,14 @@
                 });
         }
 
-        function playMidiPreview(midiBuffer, num) {
+        function playNotesPreview(notes, num) {
             const btn = document.getElementById('previewBtn' + num);
             const statusEl = document.getElementById('previewStatus' + num);
 
-            // Simple MIDI-to-audio synthesis using Web Audio API
+            // Simple notes-to-audio synthesis using Web Audio API
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
-            // Parse basic MIDI from the buffer
-            const notes = parseMidiNotes(new Uint8Array(midiBuffer));
-            
-            if (notes.length === 0) {
+            if (!notes || notes.length === 0) {
                 statusEl.innerHTML = '<i data-lucide="alert-circle"></i> No playable notes';
                 btn.disabled = false;
                 lucide.createIcons();
@@ -805,9 +795,13 @@
 
                 // Envelope
                 const vol = (note.velocity || 90) / 127 * 0.15;
+                const duration = end - note.start;
+                const safeAttack = Math.min(0.02, duration / 2);
+                const safeRelease = Math.min(0.02, duration / 2);
+                
                 gain.gain.setValueAtTime(0, audioCtx.currentTime + note.start);
-                gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + note.start + 0.02);
-                gain.gain.setValueAtTime(vol, audioCtx.currentTime + end - 0.02);
+                gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + note.start + safeAttack);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime + end - safeRelease);
                 gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + end);
 
                 osc.connect(gain);
@@ -996,21 +990,23 @@
                     datasets: [{
                         label: 'Best Fitness',
                         data: [],
-                        borderColor: '#a78bfa',
-                        backgroundColor: 'rgba(167,139,250,0.1)',
+                        borderColor: '#ffffff',
+                        backgroundColor: 'rgba(255,255,255,0.1)',
                         fill: true,
                         tension: 0.4,
                         borderWidth: 2,
-                        pointRadius: 0
+                        pointRadius: 3,
+                        pointHoverRadius: 5
                     }, {
                         label: 'Avg Fitness',
                         data: [],
-                        borderColor: '#48bb78',
-                        backgroundColor: 'rgba(72,187,120,0.05)',
+                        borderColor: '#aaaaaa',
+                        backgroundColor: 'rgba(255,255,255,0.05)',
                         fill: true,
                         tension: 0.4,
                         borderWidth: 2,
-                        pointRadius: 0
+                        pointRadius: 3,
+                        pointHoverRadius: 5
                     }]
                 },
                 options: {

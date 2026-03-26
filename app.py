@@ -77,30 +77,31 @@ def preview_song(song_idx):
         if not track_to_use:
             return jsonify({'error': 'No playable track found'}), 404
         
-        # Filter notes to first 10 seconds
-        instrument = pretty_midi.Instrument(program=0, name='Preview')
+        # Find the starting time (first note)
+        first_note_start = float('inf')
         for note in track_to_use:
-            if note['start'] < 10.0:
-                end = min(note['end'], 10.0)
-                midi_note = pretty_midi.Note(
-                    velocity=min(120, max(40, note.get('velocity', 90))),
-                    pitch=max(21, min(108, int(note['pitch']))),
-                    start=note['start'],
-                    end=end
-                )
-                instrument.notes.append(midi_note)
-        
-        if not instrument.notes:
+            if note['start'] < first_note_start:
+                first_note_start = note['start']
+                
+        if first_note_start == float('inf'):
+            return jsonify({'error': 'Track is empty'}), 404
+            
+        # Filter notes to first 10 seconds after the first note
+        notes_json = []
+        for note in track_to_use:
+            if note['start'] >= first_note_start and note['start'] < first_note_start + 10.0:
+                end = min(note['end'], first_note_start + 10.0)
+                notes_json.append({
+                    'velocity': min(120, max(40, note.get('velocity', 90))),
+                    'pitch': max(21, min(108, int(note['pitch']))),
+                    'start': note['start'] - first_note_start,
+                    'end': end - first_note_start
+                })
+                
+        if not notes_json:
             return jsonify({'error': 'No notes in preview range'}), 404
         
-        midi.instruments.append(instrument)
-        
-        # Save to temp file
-        preview_path = os.path.join('data', 'generated', f'preview_{song_idx}.mid')
-        midi.write(preview_path)
-        
-        return send_file(preview_path, mimetype='audio/midi',
-                        download_name=f'preview_{song_idx}.mid')
+        return jsonify({'notes': notes_json})
     except Exception as e:
         print(f"Preview error: {e}")
         return jsonify({'error': str(e)}), 500

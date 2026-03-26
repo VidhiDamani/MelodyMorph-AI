@@ -27,6 +27,7 @@ data/feature_cache.pkl
 data/generated/
 data/temp/
 data/visualizations/
+data/*.txt
 
 # VS Code
 .vscode/

@@ -25,6 +25,30 @@ class BollywoodFitness:
         """
         Evaluate with STRICT penalties for bad combinations
         """
+        # --- APPLY MUTATIONS FOR EVALUATION ---
+        eval_tracks = []
+        for i, track in enumerate(chromosome.tracks):
+            if not track:
+                eval_tracks.append([])
+                continue
+            
+            pitch_shift = chromosome.control_genes['pitch_shifts'][i] if i < len(chromosome.control_genes['pitch_shifts']) else 0
+            tempo_scale = chromosome.control_genes['tempo_scales'][i] if i < len(chromosome.control_genes['tempo_scales']) else 1.0
+            
+            eval_track = []
+            for note in track:
+                eval_track.append({
+                    'pitch': note['pitch'] + pitch_shift,
+                    'start': note['start'] * tempo_scale,
+                    'end': note['end'] * tempo_scale,
+                    'velocity': note.get('velocity', 90)
+                })
+            eval_tracks.append(eval_track)
+            
+        # Temporarily use mutated tracks for scoring
+        original_tracks = chromosome.tracks
+        chromosome.tracks = eval_tracks
+        
         scores = {}
         
         # Calculate each component
@@ -35,12 +59,15 @@ class BollywoodFitness:
         scores['melodic_flow'] = self._calculate_melodic_score(chromosome)
         scores['dissonance'] = self._calculate_dissonance_score(chromosome)
         
+        # Restore original unmutated tracks
+        chromosome.tracks = original_tracks
+        
         # Calculate weighted total
         total_fitness = sum(
             scores[key] * self.weights[key] 
             for key in scores
         )
-        
+
         # Apply PENALTIES for obviously bad combinations
         penalty = 1.0
         
@@ -57,6 +84,16 @@ class BollywoodFitness:
         tempo2 = self.source_features.get('tempo2', 100)
         if abs(tempo1 - tempo2) > 30:
             penalty *= 0.8
+            
+        # Penalty 4: Lacking creativity (carbon copy of source)
+        original = True
+        for p in chromosome.control_genes['pitch_shifts']:
+            if p != 0: original = False
+        for t in chromosome.control_genes['tempo_scales']:
+            if abs(t - 1.0) > 0.01: original = False
+            
+        if original:
+            penalty *= 0.75  # 25% penalty for just copying the original track!
             
         # Apply penalty
         chromosome.fitness = total_fitness * penalty

@@ -109,10 +109,11 @@ class BollywoodGA:
             child1.control_genes[key] = parent1.control_genes[key].copy()
             child2.control_genes[key] = parent2.control_genes[key].copy()
             
-            # Randomly swap some genes
-            if random.random() < 0.3:
-                child1.control_genes[key], child2.control_genes[key] = \
-                    child2.control_genes[key], child1.control_genes[key]
+            # Element-wise crossover for genes
+            for i in range(len(parent1.control_genes[key])):
+                if random.random() < 0.5:
+                    child1.control_genes[key][i], child2.control_genes[key][i] = \
+                        child2.control_genes[key][i], child1.control_genes[key][i]
         
         return child1, child2
     
@@ -125,18 +126,18 @@ class BollywoodGA:
         
         # Mutate pitch shifts
         for i in range(len(mutated.control_genes['pitch_shifts'])):
-            if random.random() < self.mutation_rate:
-                # Change by -1, 0, or +1
-                mutated.control_genes['pitch_shifts'][i] += random.randint(-1, 1)
+            if random.random() < self.mutation_rate * 2: # Double chance
+                # Change by a guaranteed offset
+                mutated.control_genes['pitch_shifts'][i] += random.choice([-2, -1, 1, 2])
                 # Keep in range
                 mutated.control_genes['pitch_shifts'][i] = max(-5, min(5, 
                     mutated.control_genes['pitch_shifts'][i]))
         
-        # Mutate tempo scales
+        # Mutate tempo scales (bigger jumps)
         for i in range(len(mutated.control_genes['tempo_scales'])):
-            if random.random() < self.mutation_rate:
-                # Change by 2-5%
-                mutated.control_genes['tempo_scales'][i] *= random.uniform(0.95, 1.05)
+            if random.random() < self.mutation_rate * 2:
+                # Change by 5-15%
+                mutated.control_genes['tempo_scales'][i] *= random.choice([random.uniform(0.85, 0.95), random.uniform(1.05, 1.15)])
                 # Keep in range
                 mutated.control_genes['tempo_scales'][i] = max(0.8, min(1.2, 
                     mutated.control_genes['tempo_scales'][i]))

@@ -214,14 +214,10 @@ class BollywoodChromosome:
         else:
             chromosome.tracks.append([])
         
-        # Random control genes
-        chromosome.control_genes['pitch_shifts'] = [
-            random.randint(-3, 3) for _ in range(3)
-        ]
+        # Baseline control genes so the GA evaluates to the base song fit and evolves from there
+        chromosome.control_genes['pitch_shifts'] = [0, 0, 0]
         
-        chromosome.control_genes['tempo_scales'] = [
-            round(random.uniform(0.85, 1.15), 2) for _ in range(3)
-        ]
+        chromosome.control_genes['tempo_scales'] = [1.0, 1.0, 1.0]
         
         chromosome.control_genes['track_volumes'] = [
             random.randint(70, 100) for _ in range(3)
