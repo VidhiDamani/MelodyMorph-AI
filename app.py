@@ -214,9 +214,13 @@ def get_run_info(run_id):
         })
     return jsonify({'error': 'Run not found'}), 404
 
+# Ensure required directories exist
+os.makedirs('data/generated', exist_ok=True)
+
 if __name__ == '__main__':
     print("\n🎵 Starting MelodyMorph AI...")
     print(f"📀 {dataset_manager.get_song_count()} songs loaded!")
-    print("📍 Open http://127.0.0.1:5000 in your browser")
+    port = int(os.environ.get('PORT', 5000))
+    print(f"📍 Open http://127.0.0.1:{port} in your browser")
     print("=" * 50)
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=port)
