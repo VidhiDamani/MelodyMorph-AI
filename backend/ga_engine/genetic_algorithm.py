@@ -89,47 +89,47 @@ class BollywoodGA:
     
     def _crossover(self, parent1, parent2):
         """
-        Create children by mixing parents (SECTIONAL CROSSOVER)
-        Swaps segments of music based on a random time point
+        Create children by mixing parents
+        Has 50% chance for Sectional (horizontal) or Vertical (track swap) crossover
         """
         if random.random() > self.crossover_rate:
             return parent1.copy(), parent2.copy()
         
+        # 50% chance for Vertical Crossover (swapping whole tracks)
+        if random.random() < 0.5:
+            child1_tracks = [t[:] for t in parent1.tracks]
+            child2_tracks = [t[:] for t in parent2.tracks]
+            idx = random.randint(0, 2)
+            child1_tracks[idx] = [n.copy() for n in parent2.tracks[idx]] if parent2.tracks[idx] else []
+            child2_tracks[idx] = [n.copy() for n in parent1.tracks[idx]] if parent1.tracks[idx] else []
+            child1 = BollywoodChromosome(child1_tracks)
+            child2 = BollywoodChromosome(child2_tracks)
+            
+            # Inherit control genes
+            child1.control_genes = parent1.control_genes.copy()
+            child2.control_genes = parent2.control_genes.copy()
+            return child1, child2
+
+        # 50% Sectional Crossover (mixing segments)
         child1_tracks = []
         child2_tracks = []
         
-        # Determine a random time split point (4-16 seconds)
-        split_time = random.uniform(4.0, 12.0)
+        # Determine a random time split point (4-12 seconds)
+        split_time = random.uniform(4.0, 10.0)
         
         for i in range(len(parent1.tracks)):
             p1_track = parent1.tracks[i]
             p2_track = parent2.tracks[i]
             
-            # Divide notes by time
             p1_early = [n.copy() for n in p1_track if n['start'] < split_time]
             p1_late = [n.copy() for n in p1_track if n['start'] >= split_time]
             p2_early = [n.copy() for n in p2_track if n['start'] < split_time]
             p2_late = [n.copy() for n in p2_track if n['start'] >= split_time]
             
-            # Mix segments
             child1_tracks.append(p1_early + p2_late)
             child2_tracks.append(p2_early + p1_late)
         
-        # Create children
-        child1 = BollywoodChromosome(child1_tracks)
-        child2 = BollywoodChromosome(child2_tracks)
-        
-        # Element-wise crossover for genes
-        for key in parent1.control_genes:
-            child1.control_genes[key] = parent1.control_genes[key].copy()
-            child2.control_genes[key] = parent2.control_genes[key].copy()
-            
-            for j in range(len(child1.control_genes[key])):
-                if random.random() < 0.5:
-                    child1.control_genes[key][j], child2.control_genes[key][j] = \
-                        child2.control_genes[key][j], child1.control_genes[key][j]
-        
-        return child1, child2
+        return BollywoodChromosome(child1_tracks), BollywoodChromosome(child2_tracks)
     
     def _mutate(self, chromosome):
         """

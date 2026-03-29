@@ -95,6 +95,11 @@ class BollywoodFitness:
         if original:
             penalty *= 0.75  # 25% penalty for just copying the original track!
             
+        # Penalty 5: Empty tracks (prefer verticality)
+        non_empty_tracks = sum(1 for t in chromosome.tracks if t)
+        if non_empty_tracks < 3:
+            penalty *= (non_empty_tracks / 3.0)  # Linear penalty for missing tracks
+            
         # Apply penalty
         chromosome.fitness = total_fitness * penalty
         chromosome.fitness_components = scores
@@ -160,7 +165,10 @@ class BollywoodFitness:
             mean_interval = np.mean(intervals)
             
             # Normalize: lower std = better
-            consistency = 1.0 / (1.0 + interval_std / mean_interval)
+            if mean_interval == 0:
+                consistency = 0.5
+            else:
+                consistency = 1.0 / (1.0 + interval_std / mean_interval)
             
             return min(1.0, consistency)
             

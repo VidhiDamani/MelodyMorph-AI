@@ -106,6 +106,57 @@ def preview_song(song_idx):
         print(f"Preview error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/mashup_preview/<run_id>')
+def preview_mashup(run_id):
+    """Generate and return a preview of the generated mashup"""
+    try:
+        if run_id not in active_runs:
+            return jsonify({'error': 'Run not found'}), 404
+            
+        midi_file = active_runs[run_id]['midi_file']
+        midi_path = os.path.join('data', 'generated', midi_file)
+        
+        if not os.path.exists(midi_path):
+            return jsonify({'error': 'MIDI file not found'}), 404
+            
+        import pretty_midi
+        pm = pretty_midi.PrettyMIDI(midi_path)
+        
+        all_notes = []
+        for instrument in pm.instruments:
+            if not instrument.is_drum:
+                for note in instrument.notes:
+                    all_notes.append({
+                        'pitch': note.pitch,
+                        'start': note.start,
+                        'end': note.end,
+                        'velocity': note.velocity
+                    })
+        
+        if not all_notes:
+            return jsonify({'error': 'No notes found in mashup'}), 404
+            
+        # Sort by start time
+        all_notes.sort(key=lambda x: x['start'])
+        
+        # Take first 30 seconds for mashup preview
+        first_note_start = all_notes[0]['start']
+        notes_json = []
+        for note in all_notes:
+            if note['start'] < first_note_start + 30.0:
+                end = min(note['end'], first_note_start + 30.0)
+                notes_json.append({
+                    'pitch': int(note['pitch']),
+                    'start': note['start'] - first_note_start,
+                    'end': end - first_note_start,
+                    'velocity': int(note['velocity'])
+                })
+                
+        return jsonify({'notes': notes_json})
+    except Exception as e:
+        print(f"Mashup preview error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/generate', methods=['POST'])
 def generate():
     """Generate mashup using GA"""

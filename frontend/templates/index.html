@@ -653,7 +653,10 @@
                     </div>
                 </div>
                 
-                <div style="text-align: center; margin: 24px 0;">
+                <div style="display: flex; justify-content: center; gap: 16px; margin: 24px 0;">
+                    <button class="download-btn" id="playMashupBtn" onclick="playMashup()">
+                        <i data-lucide="play"></i> Play Mashup
+                    </button>
                     <a href="#" class="download-btn" id="downloadBtn" onclick="downloadMashup()">
                         <i data-lucide="download"></i> Download MIDI
                     </a>
@@ -781,21 +784,23 @@
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
             if (!notes || notes.length === 0) {
-                statusEl.innerHTML = '<i data-lucide="alert-circle"></i> No playable notes';
-                btn.disabled = false;
+                if (statusEl) statusEl.innerHTML = '<i data-lucide="alert-circle"></i> No playable notes';
+                if (btn) btn.disabled = false;
                 lucide.createIcons();
                 return;
             }
 
             activePreview = num;
-            btn.innerHTML = '<i data-lucide="square"></i>';
-            btn.disabled = false;
-            statusEl.innerHTML = '<i data-lucide="volume-2"></i> Playing preview...';
+            if (btn) btn.innerHTML = '<i data-lucide="square"></i>';
+            if (btn) btn.disabled = false;
+            if (statusEl) {
+                statusEl.innerHTML = '<i data-lucide="volume-2"></i> Playing preview...';
+            }
             lucide.createIcons();
 
             // Schedule all notes
             const oscillators = [];
-            const maxTime = 10; // 10 second limit
+            const maxTime = num === 'mashup' ? 30 : 10; // 30s for mashup, 10s for preview
 
             notes.forEach(note => {
                 if (note.start > maxTime) return;
@@ -1108,6 +1113,12 @@
                     document.getElementById('resultsSection').style.display = 'block';
                     document.getElementById('progressMessage').innerHTML = 
                         `<i data-lucide="check-circle"></i> Complete! Best fitness: ${data.best_fitness.toFixed(3)}`;
+                        
+                    // Update the section header
+                    const progressHeader = document.querySelector('#progressSection h3');
+                    if (progressHeader) {
+                        progressHeader.innerHTML = '<i data-lucide="check-circle" class="text-success"></i> Evolution Complete!';
+                    }
                     
                     // Set download link
                     document.getElementById('downloadBtn').href = `/api/download/${data.run_id}`;
@@ -1130,6 +1141,60 @@
             if (!currentRunId) return;
             // Download handled by href
         }
+
+        function playMashup() {
+            if (!currentRunId) return;
+            
+            const btn = document.getElementById('playMashupBtn');
+            const statusMessage = document.getElementById('progressMessage');
+            
+            // If already playing mashup, stop it
+            if (activePreview === 'mashup') {
+                stopPreview('mashup');
+                btn.innerHTML = '<i data-lucide="play"></i> Play Mashup';
+                lucide.createIcons();
+                return;
+            }
+
+            // Stop any other preview
+            if (activePreview !== null) {
+                stopPreview(activePreview);
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader"></i> Loading...';
+            lucide.createIcons();
+
+            fetch(`/api/mashup_preview/${currentRunId}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Mashup preview not available');
+                    return res.json();
+                })
+                .then(data => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="square"></i> Stop Mashup';
+                    playNotesPreview(data.notes, 'mashup');
+                })
+                .catch(err => {
+                    alert('Error: ' + err.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="play"></i> Play Mashup';
+                    lucide.createIcons();
+                });
+        }
+
+        // Add helper to handle the stop button in UI
+        const originalStopPreview = stopPreview;
+        stopPreview = function(num) {
+            originalStopPreview(num);
+            if (num === 'mashup') {
+                const btn = document.getElementById('playMashupBtn');
+                if (btn) {
+                    btn.innerHTML = '<i data-lucide="play"></i> Play Mashup';
+                    lucide.createIcons();
+                }
+            }
+        };
     </script>
 </body>
 </html>
