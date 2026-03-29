@@ -99,9 +99,14 @@ class BollywoodGA:
         if random.random() < 0.5:
             child1_tracks = [t[:] for t in parent1.tracks]
             child2_tracks = [t[:] for t in parent2.tracks]
-            idx = random.randint(0, 2)
-            child1_tracks[idx] = [n.copy() for n in parent2.tracks[idx]] if parent2.tracks[idx] else []
-            child2_tracks[idx] = [n.copy() for n in parent1.tracks[idx]] if parent1.tracks[idx] else []
+            
+            # Safely pick an index based on the available tracks
+            available_tracks = min(len(parent1.tracks), len(parent2.tracks), 3)
+            if available_tracks > 0:
+                idx = random.randint(0, available_tracks - 1)
+                child1_tracks[idx] = [n.copy() for n in parent2.tracks[idx]] if parent2.tracks[idx] else []
+                child2_tracks[idx] = [n.copy() for n in parent1.tracks[idx]] if parent1.tracks[idx] else []
+                
             child1 = BollywoodChromosome(child1_tracks)
             child2 = BollywoodChromosome(child2_tracks)
             

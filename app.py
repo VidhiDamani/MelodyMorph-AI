@@ -157,6 +157,18 @@ def preview_mashup(run_id):
         print(f"Mashup preview error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    error_details = {
+        "error": str(e),
+        "type": type(e).__name__,
+        "traceback": traceback.format_exc()
+    }
+    print(f"❌ SERVER ERROR: {error_details['error']}")
+    print(error_details['traceback'])
+    return jsonify(error_details), 500
+
 @app.route('/api/generate', methods=['POST'])
 def generate():
     """Generate mashup using GA"""
@@ -274,4 +286,4 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"📍 Open http://127.0.0.1:{port} in your browser")
     print("=" * 50)
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
