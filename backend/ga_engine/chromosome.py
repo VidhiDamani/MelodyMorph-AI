@@ -211,47 +211,127 @@ class BollywoodChromosome:
             return False
     
     @staticmethod
+    def _normalize_track(track):
+        """Shift all notes so the track starts at time 0"""
+        if not track:
+            return []
+        t = sorted(track, key=lambda n: n['start'])
+        offset = t[0]['start']
+        return [{**n, 'start': n['start'] - offset, 'end': n['end'] - offset} for n in t]
+
+    @staticmethod
+    def _blend_two_tracks(track1, track2, segment_sec=6.0):
+        """
+        Interleave two tracks by alternating segments of ~segment_sec seconds.
+        This ensures BOTH songs are heard throughout the mashup.
+        """
+        if not track1 and not track2:
+            return []
+        if not track1:
+            return [n.copy() for n in track2]
+        if not track2:
+            return [n.copy() for n in track1]
+
+        t1 = BollywoodChromosome._normalize_track(track1)
+        t2 = BollywoodChromosome._normalize_track(track2)
+
+        dur1 = max((n['end'] for n in t1), default=segment_sec)
+        dur2 = max((n['end'] for n in t2), default=segment_sec)
+        total_dur = max(dur1, dur2)
+
+        result = []
+        seg_idx = 0
+        cursor = 0.0
+
+        while cursor < total_dur:
+            seg_end = min(cursor + segment_sec, total_dur)
+            src = t1 if seg_idx % 2 == 0 else t2
+            src_dur = dur1 if seg_idx % 2 == 0 else dur2
+
+            # How far into the source track this segment starts (with looping)
+            src_cursor = cursor % src_dur if src_dur > 0 else 0.0
+            src_seg_end = src_cursor + segment_sec
+
+            for note in src:
+                ns = note['start']
+                ne = note['end']
+                # Accept notes that start within [src_cursor, src_seg_end)
+                if ns >= src_cursor and ns < src_seg_end:
+                    new_start = cursor + (ns - src_cursor)
+                    new_end   = cursor + min(ne - src_cursor, segment_sec)
+                    if new_end > new_start:
+                        result.append({
+                            'pitch':    note['pitch'],
+                            'start':    round(new_start, 4),
+                            'end':      round(min(new_end, seg_end), 4),
+                            'velocity': note.get('velocity', 80),
+                            'duration': round(min(new_end, seg_end) - new_start, 4)
+                        })
+
+            cursor = seg_end
+            seg_idx += 1
+
+        return result
+
+    @staticmethod
     def create_random(source_tracks):
         """
-        Create random chromosome by picking 3 tracks from the available pool
+        Create random chromosome by BLENDING both songs track-by-track.
+        Each slot (drums / bass / melody) is a per-slot interleave of song1 + song2,
+        so both songs are genuinely heard throughout the mashup.
         """
         chromosome = BollywoodChromosome()
         chromosome.tracks = []
-        
-        # Flatten pool: ensure it's a list of tracks (where each track is a list of notes)
-        pool = []
+
+        # Separate the two songs' track lists
+        song_track_lists = []
         for item in source_tracks:
-            # Check if this is a list of tracks or a single track
-            if len(item) > 0 and isinstance(item[0], list):
-                # It's a list of tracks (like tracks1 from DatasetManager)
-                for track in item:
-                    if track: pool.append(track)
+            if item and isinstance(item[0], list):
+                song_track_lists.append(item)   # Already a list of tracks
             elif item:
-                # It's a single track
-                pool.append(item)
-        
-        # Pick 3 random tracks (or as many as available)
+                song_track_lists.append([item]) # Single track — wrap
+
+        # Ensure we have at least 2 songs; pad if needed
+        while len(song_track_lists) < 2:
+            song_track_lists.append([[], [], []])
+
+        tracks1 = song_track_lists[0]
+        tracks2 = song_track_lists[1]
+
+        # Pad to 3 tracks each
+        while len(tracks1) < 3: tracks1.append([])
+        while len(tracks2) < 3: tracks2.append([])
+
+        # For each slot, blend the two songs' corresponding tracks
         for i in range(3):
-            if pool:
-                track = random.choice(pool)
-                chromosome.tracks.append([n.copy() for n in track])
+            t1 = tracks1[i] if tracks1[i] else []
+            t2 = tracks2[i] if tracks2[i] else []
+
+            blend_prob = random.random()
+            if blend_prob < 0.7:
+                # Proper interleave — both songs contribute
+                seg = random.uniform(4.0, 8.0)   # Vary segment length for diversity
+                blended = BollywoodChromosome._blend_two_tracks(t1, t2, segment_sec=seg)
+                chromosome.tracks.append(blended)
+            elif blend_prob < 0.85:
+                # Mostly song1 with song2's notes scattered in
+                chromosome.tracks.append([n.copy() for n in t1] if t1 else [n.copy() for n in t2])
             else:
-                chromosome.tracks.append([])
-        
-        # Baseline control genes so the GA evaluates to the base song fit and evolves from there
+                # Mostly song2
+                chromosome.tracks.append([n.copy() for n in t2] if t2 else [n.copy() for n in t1])
+
+        # Control genes
         chromosome.control_genes['pitch_shifts'] = [0, 0, 0]
-        
         chromosome.control_genes['tempo_scales'] = [1.0, 1.0, 1.0]
-        
         chromosome.control_genes['track_volumes'] = [
             random.randint(70, 100) for _ in range(3)
         ]
-        
         chromosome.control_genes['instrument_choices'] = [
             random.randint(0, 4) for _ in range(3)
         ]
-        
+
         return chromosome
+
     
     def crossover(self, other, point=None):
         """
