@@ -439,13 +439,19 @@ class DatasetManager:
                 # Check if it's a hash (all hex characters and long)
                 if len(name) > 20 and all(c in '0123456789abcdef' for c in name.lower()):
                     # It's probably a hash - use folder info instead
-                    if folder and folder not in ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f']:
+                    if folder and not folder.strip().isdigit() and folder not in ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f']:
                         name = f"Song from {folder}"
                     else:
                         # Try to get the parent folder name
-                        path_parts = song['metadata'].get('full_path', '').split('\\')
-                        if len(path_parts) > 2:
-                            name = f"Song from {path_parts[-2]}"
+                        path_parts = song['metadata'].get('full_path', '').replace('/', '\\').split('\\')
+                        # Find first non-numeric, non-single-hex-char folder name
+                        meaningful_part = None
+                        for part in reversed(path_parts[:-1]):
+                            if part and not part.strip().isdigit() and len(part) > 1 and not all(c in '0123456789abcdef' for c in part.lower()):
+                                meaningful_part = part
+                                break
+                        if meaningful_part:
+                            name = f"Song from {meaningful_part}"
                         else:
                             name = f"Track {i+1}"
                 

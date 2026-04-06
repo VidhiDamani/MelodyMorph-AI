@@ -4,6 +4,8 @@ Main application file - FIXED VERSION
 """
 
 import os
+import random
+import glob
 from flask import Flask, render_template, jsonify, request, send_file
 import numpy as np
 import json
@@ -29,6 +31,32 @@ print("=" * 50)
 # Store active GA runs
 active_runs = {}
 
+# Shuffled index map: frontend_index -> dataset_index
+# Re-shuffled on each /api/songs call for variety
+_song_index_map = []
+
+def _build_song_index_map():
+    """Build a freshly shuffled index map from dataset"""
+    global _song_index_map
+    count = dataset_manager.get_song_count()
+    _song_index_map = list(range(count))
+    random.shuffle(_song_index_map)
+
+def _cleanup_old_midi_files(keep_last=5):
+    """Delete old generated MIDI files, keeping only the most recent N"""
+    generated_dir = os.path.join('data', 'generated')
+    midi_files = sorted(
+        glob.glob(os.path.join(generated_dir, '*.mid')),
+        key=os.path.getmtime
+    )
+    # Remove all but the last `keep_last` files
+    for old_file in midi_files[:-keep_last] if len(midi_files) > keep_last else []:
+        try:
+            os.remove(old_file)
+            print(f"🗑️  Cleaned up old file: {os.path.basename(old_file)}")
+        except Exception as e:
+            print(f"Warning: could not delete {old_file}: {e}")
+
 @app.route('/')
 def index():
     """Home page"""
@@ -46,18 +74,27 @@ def status():
 
 @app.route('/api/songs')
 def get_songs():
-    """Get list of available songs"""
-    songs = dataset_manager.get_song_names()
+    """Get list of available songs - reshuffled each call for variety"""
+    _build_song_index_map()
+    all_names = dataset_manager.get_song_names()
+    # Return names in shuffled order
+    shuffled_names = [all_names[i] for i in _song_index_map]
     return jsonify({
-        'songs': songs,
-        'count': len(songs)
+        'songs': shuffled_names,
+        'count': len(shuffled_names)
     })
+
+def _resolve_idx(frontend_idx):
+    """Translate frontend (shuffled) index to actual dataset index"""
+    if _song_index_map and 0 <= frontend_idx < len(_song_index_map):
+        return _song_index_map[frontend_idx]
+    return frontend_idx  # fallback
 
 @app.route('/api/preview/<int:song_idx>')
 def preview_song(song_idx):
     """Generate and return a 10-second MIDI preview of a song"""
     try:
-        song = dataset_manager.get_song(song_idx)
+        song = dataset_manager.get_song(_resolve_idx(song_idx))
         if not song:
             return jsonify({'error': 'Song not found'}), 404
         
@@ -174,10 +211,13 @@ def generate():
     """Generate mashup using GA"""
     try:
         data = request.json
-        song1_idx = int(data.get('song1', 0))
-        song2_idx = int(data.get('song2', 1))
+        song1_idx = _resolve_idx(int(data.get('song1', 0)))
+        song2_idx = _resolve_idx(int(data.get('song2', 1)))
         generations = int(data.get('generations', 50))
         population_size = int(data.get('population_size', 50))
+        
+        # Clean up old generated files before creating a new one
+        _cleanup_old_midi_files(keep_last=5)
         
         print(f"\n🎮 Generating mashup:")
         print(f"   Song 1: {dataset_manager.get_song_names()[song1_idx]}")
@@ -213,7 +253,7 @@ def generate():
         midi_path = os.path.join('data', 'generated', midi_filename)
         best.to_midi(midi_path)
         
-        # Store run info
+        # Store run info (cap at 5 to prevent memory growth on Render)
         run_id = str(timestamp)
         active_runs[run_id] = {
             'ga': ga,
@@ -222,6 +262,10 @@ def generate():
             'song2': ga_input['song2_name'],
             'midi_file': midi_filename
         }
+        # Evict oldest runs beyond the cap
+        if len(active_runs) > 5:
+            oldest_key = next(iter(active_runs))
+            active_runs.pop(oldest_key, None)
         
         # Prepare response
         response = {
