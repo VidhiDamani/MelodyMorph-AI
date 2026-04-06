@@ -213,8 +213,8 @@ def generate():
         data = request.json
         song1_idx = _resolve_idx(int(data.get('song1', 0)))
         song2_idx = _resolve_idx(int(data.get('song2', 1)))
-        generations = int(data.get('generations', 50))
-        population_size = int(data.get('population_size', 50))
+        generations = min(int(data.get('generations', 50)), 50)      # cap: Render timeout safety
+        population_size = min(int(data.get('population_size', 40)), 40)  # cap: memory safety
         
         # Clean up old generated files before creating a new one
         _cleanup_old_midi_files(keep_last=5)
