@@ -217,58 +217,77 @@ class BollywoodChromosome:
             return []
         t = sorted(track, key=lambda n: n['start'])
         offset = t[0]['start']
-        return [{**n, 'start': n['start'] - offset, 'end': n['end'] - offset} for n in t]
+        return [{**n, 'start': round(n['start'] - offset, 4),
+                      'end':   round(n['end']   - offset, 4)} for n in t]
 
     @staticmethod
-    def _blend_two_tracks(track1, track2, segment_sec=6.0):
+    def _loop_track(track, target_duration):
         """
-        Interleave two tracks by alternating segments of ~segment_sec seconds.
-        This ensures BOTH songs are heard throughout the mashup.
+        Repeat a (normalized) track until it fills target_duration seconds.
+        This ensures we always have enough material to blend.
         """
-        if not track1 and not track2:
+        if not track:
             return []
-        if not track1:
-            return [n.copy() for n in track2]
-        if not track2:
-            return [n.copy() for n in track1]
+        src_dur = max(n['end'] for n in track) if track else 0.0
+        if src_dur <= 0:
+            return [n.copy() for n in track]
 
-        t1 = BollywoodChromosome._normalize_track(track1)
-        t2 = BollywoodChromosome._normalize_track(track2)
+        result = []
+        offset = 0.0
+        while offset < target_duration:
+            for note in track:
+                new_start = round(note['start'] + offset, 4)
+                new_end   = round(note['end']   + offset, 4)
+                if new_start >= target_duration:
+                    continue
+                result.append({
+                    'pitch':    note['pitch'],
+                    'start':    new_start,
+                    'end':      min(new_end, target_duration),
+                    'velocity': note.get('velocity', 80),
+                    'duration': round(min(new_end, target_duration) - new_start, 4)
+                })
+            offset += src_dur
+        return result
 
-        dur1 = max((n['end'] for n in t1), default=segment_sec)
-        dur2 = max((n['end'] for n in t2), default=segment_sec)
-        total_dur = max(dur1, dur2)
+    @staticmethod
+    def _blend_two_tracks(track1, track2, segment_sec=6.0, total_duration=30.0):
+        """
+        TRUE MASHUP: loop both tracks to fill total_duration, then alternate
+        segments so BOTH songs are clearly audible throughout the output.
+
+        Output structure (example, segment_sec=6, total=30s):
+          0-6s  → Song 1
+          6-12s → Song 2
+          12-18s→ Song 1
+          18-24s→ Song 2
+          24-30s→ Song 1
+        """
+        t1n = BollywoodChromosome._normalize_track(track1)
+        t2n = BollywoodChromosome._normalize_track(track2)
+
+        t1_long = BollywoodChromosome._loop_track(t1n, total_duration)
+        t2_long = BollywoodChromosome._loop_track(t2n, total_duration)
+
+        # Fallback if one song is empty
+        if not t1_long:
+            return t2_long
+        if not t2_long:
+            return t1_long
 
         result = []
         seg_idx = 0
-        cursor = 0.0
+        cursor  = 0.0
 
-        while cursor < total_dur:
-            seg_end = min(cursor + segment_sec, total_dur)
-            src = t1 if seg_idx % 2 == 0 else t2
-            src_dur = dur1 if seg_idx % 2 == 0 else dur2
-
-            # How far into the source track this segment starts (with looping)
-            src_cursor = cursor % src_dur if src_dur > 0 else 0.0
-            src_seg_end = src_cursor + segment_sec
+        while cursor < total_duration:
+            seg_end = min(cursor + segment_sec, total_duration)
+            src = t1_long if seg_idx % 2 == 0 else t2_long
 
             for note in src:
-                ns = note['start']
-                ne = note['end']
-                # Accept notes that start within [src_cursor, src_seg_end)
-                if ns >= src_cursor and ns < src_seg_end:
-                    new_start = cursor + (ns - src_cursor)
-                    new_end   = cursor + min(ne - src_cursor, segment_sec)
-                    if new_end > new_start:
-                        result.append({
-                            'pitch':    note['pitch'],
-                            'start':    round(new_start, 4),
-                            'end':      round(min(new_end, seg_end), 4),
-                            'velocity': note.get('velocity', 80),
-                            'duration': round(min(new_end, seg_end) - new_start, 4)
-                        })
+                if note['start'] >= cursor and note['start'] < seg_end:
+                    result.append(note.copy())
 
-            cursor = seg_end
+            cursor  = seg_end
             seg_idx += 1
 
         return result
@@ -277,8 +296,8 @@ class BollywoodChromosome:
     def create_random(source_tracks):
         """
         Create random chromosome by BLENDING both songs track-by-track.
-        Each slot (drums / bass / melody) is a per-slot interleave of song1 + song2,
-        so both songs are genuinely heard throughout the mashup.
+        Each slot (drums / bass / melody) alternates segments from song1 & song2
+        so BOTH songs are genuinely heard throughout the mashup.
         """
         chromosome = BollywoodChromosome()
         chromosome.tracks = []
@@ -287,50 +306,55 @@ class BollywoodChromosome:
         song_track_lists = []
         for item in source_tracks:
             if item and isinstance(item[0], list):
-                song_track_lists.append(item)   # Already a list of tracks
+                song_track_lists.append(item)   # list of tracks
             elif item:
-                song_track_lists.append([item]) # Single track — wrap
+                song_track_lists.append([item]) # single track — wrap
 
-        # Ensure we have at least 2 songs; pad if needed
+        # Need exactly 2 songs; pad if only 1 (or 0) provided
         while len(song_track_lists) < 2:
             song_track_lists.append([[], [], []])
 
-        tracks1 = song_track_lists[0]
-        tracks2 = song_track_lists[1]
+        tracks1 = list(song_track_lists[0])
+        tracks2 = list(song_track_lists[1])
 
-        # Pad to 3 tracks each
+        # Pad to 3 slots each
         while len(tracks1) < 3: tracks1.append([])
         while len(tracks2) < 3: tracks2.append([])
 
-        # For each slot, blend the two songs' corresponding tracks
+        # Blend each slot
+        total_dur  = 30.0                         # Target output length
         for i in range(3):
             t1 = tracks1[i] if tracks1[i] else []
             t2 = tracks2[i] if tracks2[i] else []
 
-            blend_prob = random.random()
-            if blend_prob < 0.7:
-                # Proper interleave — both songs contribute
-                seg = random.uniform(4.0, 8.0)   # Vary segment length for diversity
-                blended = BollywoodChromosome._blend_two_tracks(t1, t2, segment_sec=seg)
+            blend_chance = random.random()
+            if blend_chance < 0.75:
+                # True interleaved blend
+                seg = random.uniform(4.0, 8.0)
+                blended = BollywoodChromosome._blend_two_tracks(
+                    t1, t2, segment_sec=seg, total_duration=total_dur)
                 chromosome.tracks.append(blended)
-            elif blend_prob < 0.85:
-                # Mostly song1 with song2's notes scattered in
-                chromosome.tracks.append([n.copy() for n in t1] if t1 else [n.copy() for n in t2])
+            elif blend_chance < 0.875:
+                # Pure song1 (looped)
+                chromosome.tracks.append(
+                    BollywoodChromosome._loop_track(
+                        BollywoodChromosome._normalize_track(t1), total_dur)
+                    if t1 else [])
             else:
-                # Mostly song2
-                chromosome.tracks.append([n.copy() for n in t2] if t2 else [n.copy() for n in t1])
+                # Pure song2 (looped)
+                chromosome.tracks.append(
+                    BollywoodChromosome._loop_track(
+                        BollywoodChromosome._normalize_track(t2), total_dur)
+                    if t2 else [])
 
         # Control genes
-        chromosome.control_genes['pitch_shifts'] = [0, 0, 0]
-        chromosome.control_genes['tempo_scales'] = [1.0, 1.0, 1.0]
-        chromosome.control_genes['track_volumes'] = [
-            random.randint(70, 100) for _ in range(3)
-        ]
-        chromosome.control_genes['instrument_choices'] = [
-            random.randint(0, 4) for _ in range(3)
-        ]
+        chromosome.control_genes['pitch_shifts']       = [0, 0, 0]
+        chromosome.control_genes['tempo_scales']       = [1.0, 1.0, 1.0]
+        chromosome.control_genes['track_volumes']      = [random.randint(70, 100) for _ in range(3)]
+        chromosome.control_genes['instrument_choices'] = [random.randint(0, 4)    for _ in range(3)]
 
         return chromosome
+
 
     
     def crossover(self, other, point=None):
