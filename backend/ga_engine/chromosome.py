@@ -295,9 +295,9 @@ class BollywoodChromosome:
     @staticmethod
     def create_random(source_tracks):
         """
-        Create random chromosome by BLENDING both songs track-by-track.
-        Each slot (drums / bass / melody) alternates segments from song1 & song2
-        so BOTH songs are genuinely heard throughout the mashup.
+        Create random chromosome by OVERLAYING both songs simultaneously.
+        Both songs' notes go into each track slot at the same time —
+        the GA then evolves pitch_shifts / tempo_scales to make them harmonize.
         """
         chromosome = BollywoodChromosome()
         chromosome.tracks = []
@@ -306,54 +306,44 @@ class BollywoodChromosome:
         song_track_lists = []
         for item in source_tracks:
             if item and isinstance(item[0], list):
-                song_track_lists.append(item)   # list of tracks
+                song_track_lists.append(item)
             elif item:
-                song_track_lists.append([item]) # single track — wrap
+                song_track_lists.append([item])
 
-        # Need exactly 2 songs; pad if only 1 (or 0) provided
         while len(song_track_lists) < 2:
             song_track_lists.append([[], [], []])
 
         tracks1 = list(song_track_lists[0])
         tracks2 = list(song_track_lists[1])
 
-        # Pad to 3 slots each
         while len(tracks1) < 3: tracks1.append([])
         while len(tracks2) < 3: tracks2.append([])
 
-        # Blend each slot
-        total_dur  = 30.0                         # Target output length
+        total_dur = 30.0   # output length
+
         for i in range(3):
             t1 = tracks1[i] if tracks1[i] else []
             t2 = tracks2[i] if tracks2[i] else []
 
-            blend_chance = random.random()
-            if blend_chance < 0.75:
-                # True interleaved blend
-                seg = random.uniform(4.0, 8.0)
-                blended = BollywoodChromosome._blend_two_tracks(
-                    t1, t2, segment_sec=seg, total_duration=total_dur)
-                chromosome.tracks.append(blended)
-            elif blend_chance < 0.875:
-                # Pure song1 (looped)
-                chromosome.tracks.append(
-                    BollywoodChromosome._loop_track(
-                        BollywoodChromosome._normalize_track(t1), total_dur)
-                    if t1 else [])
-            else:
-                # Pure song2 (looped)
-                chromosome.tracks.append(
-                    BollywoodChromosome._loop_track(
-                        BollywoodChromosome._normalize_track(t2), total_dur)
-                    if t2 else [])
+            t1n = BollywoodChromosome._normalize_track(t1)
+            t2n = BollywoodChromosome._normalize_track(t2)
 
-        # Control genes
-        chromosome.control_genes['pitch_shifts']       = [0, 0, 0]
-        chromosome.control_genes['tempo_scales']       = [1.0, 1.0, 1.0]
+            t1_long = BollywoodChromosome._loop_track(t1n, total_dur)
+            t2_long = BollywoodChromosome._loop_track(t2n, total_dur)
+
+            # ── TRUE OVERLAY: both songs play at the same time ──
+            merged = t1_long + t2_long
+            merged.sort(key=lambda n: n['start'])
+            chromosome.tracks.append(merged)
+
+        # Random initial pitch shifts so the GA has variety to evolve from
+        chromosome.control_genes['pitch_shifts']       = [random.randint(-3, 3) for _ in range(3)]
+        chromosome.control_genes['tempo_scales']       = [round(random.uniform(0.95, 1.05), 2) for _ in range(3)]
         chromosome.control_genes['track_volumes']      = [random.randint(70, 100) for _ in range(3)]
         chromosome.control_genes['instrument_choices'] = [random.randint(0, 4)    for _ in range(3)]
 
         return chromosome
+
 
 
     
